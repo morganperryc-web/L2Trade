@@ -46,74 +46,12 @@ const FEATURES = [
 ];
 
 // ─── Main screen component ──────────────────────────────────────────────────
+import HomeScreen from './screens/HomeScreen';
+
 export default function App() {
-  return (
-    // LinearGradient paints the dark-green background that fades from top to bottom.
-    // 'colors' is an array of [topColour, bottomColour].
-    // 'style={styles.gradient}' makes it fill the entire screen.
-    <LinearGradient
-      colors={['#0A2E1A', '#0D3B22']}
-      style={styles.gradient}
-    >
-      {/* Make the status-bar text white so it shows on the dark background */}
-      <StatusBar style="light" />
-
-      {/* SafeAreaView adds automatic padding so content doesn't hide under
-          the notch on iPhones or the navigation bar on Android */}
-      <SafeAreaView style={styles.safeArea}>
-
-        {/* ── Top section: icon, headline, subtitle, feature cards ── */}
-        <View style={styles.topContent}>
-
-          {/* App icon – a dark rounded square with a green chart icon inside */}
-          <View style={styles.appIcon}>
-            <Ionicons name="trending-up" size={40} color="#00E676" />
-          </View>
-
-          {/* Main headline – two lines, large bold white text */}
-          <Text style={styles.headline}>Welcome to{'\n'}EduWhale</Text>
-
-          {/* Subtitle – smaller muted-green description */}
-          <Text style={styles.subtitle}>
-            Learn to day trade like a pro with bite-sized lessons and real-time practice
-          </Text>
-
-          {/* Feature cards – we loop over the FEATURES array and render one
-              card for each item using .map() */}
-          <View style={styles.cardsContainer}>
-            {FEATURES.map((feature) => (
-              // Each card is a horizontal row: icon box on the left, text on the right
-              <View key={feature.title} style={styles.card}>
-
-                {/* Small rounded square that holds the card's icon */}
-                <View style={styles.iconBox}>
-                  <Ionicons name={feature.icon} size={22} color="#00E676" />
-                </View>
-
-                {/* Card title and subtitle text */}
-                <View style={styles.cardText}>
-                  <Text style={styles.cardTitle}>{feature.title}</Text>
-                  <Text style={styles.cardSubtitle}>{feature.subtitle}</Text>
-                </View>
-
-              </View>
-            ))}
-          </View>
-
-        </View>
-
-        {/* ── Bottom section: Get Started button pinned to the foot of the screen ── */}
-        <View style={styles.bottomSection}>
-          {/* TouchableOpacity makes the button slightly transparent when tapped
-              so the user gets a visual tap response */}
-          <TouchableOpacity style={styles.button} activeOpacity={0.85}>
-            <Text style={styles.buttonText}>Get Started</Text>
-          </TouchableOpacity>
-        </View>
-
-      </SafeAreaView>
-    </LinearGradient>
-  );
+  // Temporary: render the new HomeScreen for preview. Navigation will be
+  // added later once all screens are implemented.
+  return <HomeScreen />;
 }
 
 // ─── Styles ─────────────────────────────────────────────────────────────────
