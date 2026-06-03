@@ -46,11 +46,11 @@ const FEATURES = [
 ];
 
 // ─── Main screen component ──────────────────────────────────────────────────
-import ProfileScreen from './screens/ProfileScreen';
+import QuizScreen from './screens/QuizScreen';
 
 export default function App() {
-  // Temporary: render ProfileScreen for preview.
-  return <ProfileScreen />;
+  // Temporary: render QuizScreen for preview.
+  return <QuizScreen />;
 }
 
 // ─── Styles ─────────────────────────────────────────────────────────────────
