@@ -46,11 +46,11 @@ const FEATURES = [
 ];
 
 // ─── Main screen component ──────────────────────────────────────────────────
-import QuizScreen from './screens/QuizScreen';
+import LessonScreen from './screens/LessonScreen';
 
 export default function App() {
-  // Temporary: render QuizScreen for preview.
-  return <QuizScreen />;
+  // Temporary: render LessonScreen for preview.
+  return <LessonScreen />;
 }
 
 // ─── Styles ─────────────────────────────────────────────────────────────────
