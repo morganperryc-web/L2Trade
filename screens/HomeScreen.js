@@ -8,17 +8,23 @@ import {
   TouchableOpacity,
   ScrollView,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-// HomeScreen replicates the dashboard screenshot. Comments explain each
-// major section so it's easy to customise later.
+// ─── Design tokens — matches OnboardingScreen ─────────────────────────────────
+const GREEN      = '#00C853';
+const GREEN_TINT = 'rgba(0, 200, 83, 0.15)';
+const BG         = '#0A0E1A';
+const CARD_BG    = '#131929';
+const BORDER     = '#1E2A3D';
+const WHITE      = '#FFFFFF';
+const GREY       = '#6B7A8D';
+const LIGHT_GREY = '#8A96A8';
+
 export default function HomeScreen({ navigation }) {
   return (
-    // Gradient background that matches the app's existing dark-green look
-    <LinearGradient colors={["#0A2E1A", "#0D3B22"]} style={styles.gradient}>
+    <View style={styles.screen}>
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="light-content" backgroundColor="#0A2E1A" />
+        <StatusBar barStyle="light-content" backgroundColor={BG} />
 
         {/* Header: app label on the left, small badges on the right */}
         <View style={styles.header}>
@@ -29,7 +35,7 @@ export default function HomeScreen({ navigation }) {
               <Text style={styles.badgeText}>7</Text>
             </View>
             <View style={styles.xpBadge}>
-              <MaterialCommunityIcons name="bolt" size={14} color="#00E676" />
+              <MaterialCommunityIcons name="bolt" size={14} color={GREEN} />
               <Text style={styles.xpText}>340 XP</Text>
             </View>
           </View>
@@ -52,7 +58,7 @@ export default function HomeScreen({ navigation }) {
           <View style={styles.actionRow}>
             <TouchableOpacity style={styles.largeTile} activeOpacity={0.85} onPress={() => navigation.navigate('Lesson')}>
               <View style={styles.tileIconWrap}>
-                <MaterialCommunityIcons name="book-open-page-variant" size={22} color="#092" />
+                <MaterialCommunityIcons name="book-open-page-variant" size={22} color={BG} />
               </View>
               <View>
                 <Text style={styles.tileTitle}>Daily Lesson</Text>
@@ -62,7 +68,7 @@ export default function HomeScreen({ navigation }) {
 
             <TouchableOpacity style={[styles.largeTile, styles.darkTile]} activeOpacity={0.85}>
               <View style={styles.tileIconWrapAlt}>
-                <MaterialCommunityIcons name="bullseye" size={22} color="#8EE99C" />
+                <MaterialCommunityIcons name="bullseye" size={22} color={GREEN} />
               </View>
               <View>
                 <Text style={[styles.tileTitle, styles.tileTitleAlt]}>Skill Quiz</Text>
@@ -74,18 +80,22 @@ export default function HomeScreen({ navigation }) {
           {/* Section title */}
           <Text style={styles.sectionTitle}>Your Path</Text>
 
-          {/* Path cards with progress bars (list approximating screenshot) */}
+          {/* Path cards with progress bars */}
           <View style={styles.pathList}>
             {[
-              { title: 'Options Basics', subtitle: 'Calls, puts, and how contracts work', progress: '62%' , count:'5/8'},
-              { title: 'Strike Price & Expiration', subtitle: 'In-the-money, at-the-money, out-of-the-money', progress: '33%', count:'2/6'},
-              { title: 'Option Premium & Greeks', subtitle: 'Delta, theta, vega, and what they mean', progress: '0%', count:''},
-              { title: 'Strategies: Covered Calls', subtitle: 'Generate income from stocks you own', progress: '0%', count:''},
+              { title: 'Options Basics', subtitle: 'Calls, puts, and how contracts work', progress: '62%', count: '5/8' },
+              { title: 'Strike Price & Expiration', subtitle: 'In-the-money, at-the-money, out-of-the-money', progress: '33%', count: '2/6' },
+              { title: 'Option Premium & Greeks', subtitle: 'Delta, theta, vega, and what they mean', progress: '0%', count: '' },
+              { title: 'Strategies: Covered Calls', subtitle: 'Generate income from stocks you own', progress: '0%', count: '' },
             ].map((m, i) => (
               <View key={i} style={styles.pathCard}>
                 <View style={styles.pathLeft}>
                   <View style={styles.pathIcon}>
-                    <MaterialCommunityIcons name={i===0? 'book-open-outline' : i===1? 'target' : 'chart-box-outline'} size={18} color="#00E676" />
+                    <MaterialCommunityIcons
+                      name={i === 0 ? 'book-open-outline' : i === 1 ? 'target' : 'chart-box-outline'}
+                      size={18}
+                      color={GREEN}
+                    />
                   </View>
                 </View>
 
@@ -108,42 +118,43 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.tabBar}>
           {/* Home — already on this screen, no navigation needed */}
           <TouchableOpacity style={styles.tabItem} activeOpacity={0.7}>
-            <MaterialCommunityIcons name="home" size={22} color="#00E676" />
+            <MaterialCommunityIcons name="home" size={22} color={GREEN} />
             <Text style={styles.tabLabelActive}>Home</Text>
           </TouchableOpacity>
 
           {/* Learn — switches to the Lesson tab */}
           <TouchableOpacity style={styles.tabItem} activeOpacity={0.7} onPress={() => navigation.navigate('Lesson')}>
-            <MaterialCommunityIcons name="book-open-variant" size={22} color="#97E6A1" />
+            <MaterialCommunityIcons name="book-open-variant" size={22} color={GREY} />
             <Text style={styles.tabLabel}>Learn</Text>
           </TouchableOpacity>
 
           {/* Profile — switches to the Profile tab */}
           <TouchableOpacity style={styles.tabItem} activeOpacity={0.7} onPress={() => navigation.navigate('Profile')}>
-            <MaterialCommunityIcons name="account" size={22} color="#97E6A1" />
+            <MaterialCommunityIcons name="account" size={22} color={GREY} />
             <Text style={styles.tabLabel}>Profile</Text>
           </TouchableOpacity>
         </View>
 
       </SafeAreaView>
-    </LinearGradient>
+    </View>
   );
 }
 
-// ──────────────────────────────────────────────────────────────────────────
-// Styles
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  gradient: { flex: 1 },
+  screen:  { flex: 1, backgroundColor: BG },
   safeArea: { flex: 1 },
+
+  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingTop: 12,
   },
   appTitle: {
-    color: '#AEECEF',
+    color: WHITE,
     fontSize: 20,
     fontWeight: '800',
     letterSpacing: 0.6,
@@ -152,7 +163,9 @@ const styles = StyleSheet.create({
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: CARD_BG,
+    borderWidth: 1,
+    borderColor: BORDER,
     paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: 14,
@@ -161,117 +174,124 @@ const styles = StyleSheet.create({
   xpBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: CARD_BG,
+    borderWidth: 1,
+    borderColor: BORDER,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 16,
     marginLeft: 8,
   },
-  xpText: { color: '#C7F9D7', marginLeft: 6, fontWeight: '700' },
+  xpText: { color: GREEN, marginLeft: 6, fontWeight: '700' },
 
   // Scrollable content area
-  content: { paddingHorizontal: 20, paddingTop: 18, paddingBottom: 10 },
+  content: { paddingHorizontal: 24, paddingTop: 18, paddingBottom: 10 },
 
   // Daily goal card
   dailyGoalCard: {
-    backgroundColor: 'rgba(0,0,0,0.12)',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 16,
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.03)',
+    borderColor: BORDER,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    marginBottom: 16,
   },
   dailyGoalHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  dailyGoalTitle: { color: '#B6EFC7', fontWeight: '700' },
-  dailyGoalCount: { color: '#8EE99C', fontWeight: '700' },
+  dailyGoalTitle: { color: LIGHT_GREY, fontWeight: '700', fontSize: 13, letterSpacing: 0.8 },
+  dailyGoalCount: { color: GREEN, fontWeight: '700', fontSize: 13 },
   progressBarTrack: {
     height: 8,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 12,
+    backgroundColor: BORDER,
+    borderRadius: 4,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: 8,
-    backgroundColor: '#00E676',
+    backgroundColor: GREEN,
+    borderRadius: 4,
   },
-  dailyGoalSub: { color: 'rgba(255,255,255,0.6)', marginTop: 8, fontSize: 12 },
+  dailyGoalSub: { color: GREY, marginTop: 8, fontSize: 12 },
 
   // Large action tiles
   actionRow: { flexDirection: 'row', gap: 12, marginBottom: 18 },
   largeTile: {
     flex: 1,
-    backgroundColor: '#00B361',
-    borderRadius: 12,
+    backgroundColor: GREEN,
+    borderRadius: 16,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
-  darkTile: { backgroundColor: 'rgba(0,0,0,0.12)' },
+  darkTile: {
+    backgroundColor: CARD_BG,
+    borderWidth: 1,
+    borderColor: BORDER,
+  },
   tileIconWrap: {
     width: 44,
     height: 44,
-    borderRadius: 12,
-    backgroundColor: '#00E676',
+    borderRadius: 13,
+    backgroundColor: 'rgba(0,0,0,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
   },
   tileIconWrapAlt: {
     width: 44,
     height: 44,
-    borderRadius: 12,
-    backgroundColor: 'rgba(0,230,118,0.12)',
+    borderRadius: 13,
+    backgroundColor: GREEN_TINT,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
   },
-  tileTitle: { color: '#071A10', fontSize: 16, fontWeight: '800' },
-  tileTitleAlt: { color: '#D6F7E0' },
-  tileSubtitle: { color: 'rgba(255,255,255,0.8)', fontSize: 12 },
+  tileTitle: { color: WHITE, fontSize: 15, fontWeight: '700' },
+  tileTitleAlt: { color: WHITE },
+  tileSubtitle: { color: LIGHT_GREY, fontSize: 12, marginTop: 2 },
 
   // Section title
-  sectionTitle: { color: '#D6F7E0', fontWeight: '800', marginBottom: 10 },
+  sectionTitle: { color: LIGHT_GREY, fontWeight: '700', fontSize: 13, letterSpacing: 0.8, marginBottom: 12 },
 
   // Path list and cards
   pathList: { gap: 12, marginBottom: 24 },
   pathCard: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(0,0,0,0.12)',
-    borderRadius: 12,
-    padding: 12,
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.03)',
+    borderColor: BORDER,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
     alignItems: 'center',
   },
   pathLeft: { paddingRight: 12 },
   pathIcon: {
     width: 46,
     height: 46,
-    borderRadius: 12,
-    backgroundColor: 'rgba(0,230,118,0.07)',
+    borderRadius: 13,
+    backgroundColor: GREEN_TINT,
     alignItems: 'center',
     justifyContent: 'center',
   },
   pathRight: { flex: 1 },
   pathTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  pathTitle: { color: '#DFF7E8', fontWeight: '700' },
-  pathCount: { color: 'rgba(255,255,255,0.6)', fontWeight: '600' },
-  pathSubtitle: { color: 'rgba(255,255,255,0.55)', fontSize: 12, marginTop: 4, marginBottom: 8 },
-  pathProgressTrack: { height: 6, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 6, overflow: 'hidden' },
-  pathProgressFill: { height: 6, backgroundColor: '#00E676' },
+  pathTitle: { color: WHITE, fontWeight: '700', fontSize: 15 },
+  pathCount: { color: GREY, fontWeight: '600', fontSize: 13 },
+  pathSubtitle: { color: GREY, fontSize: 13, marginTop: 4, marginBottom: 8, lineHeight: 18 },
+  pathProgressTrack: { height: 6, backgroundColor: BORDER, borderRadius: 3, overflow: 'hidden' },
+  pathProgressFill: { height: 6, backgroundColor: GREEN, borderRadius: 3 },
 
   // Bottom tab bar
   tabBar: {
-    height: 72,
+    height: 64,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.03)',
+    borderTopColor: BORDER,
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.06)',
+    backgroundColor: CARD_BG,
   },
   tabItem: { alignItems: 'center', gap: 4 },
-  tabLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 12 },
-  tabLabelActive: { color: '#00E676', fontSize: 12, fontWeight: '700' },
+  tabLabel: { color: GREY, fontSize: 11 },
+  tabLabelActive: { color: GREEN, fontSize: 11, fontWeight: '700' },
 });

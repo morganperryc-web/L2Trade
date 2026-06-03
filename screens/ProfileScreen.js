@@ -8,31 +8,37 @@ import {
   ScrollView,
   SafeAreaView,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 
+// ─── Design tokens — matches OnboardingScreen ─────────────────────────────────
+const GREEN      = '#00C853';
+const GREEN_TINT = 'rgba(0, 200, 83, 0.15)';
+const BG         = '#0A0E1A';
+const CARD_BG    = '#131929';
+const BORDER     = '#1E2A3D';
+const WHITE      = '#FFFFFF';
+const GREY       = '#6B7A8D';
+const LIGHT_GREY = '#8A96A8';
+
 // ─── Static data ──────────────────────────────────────────────────────────────
-// Weekly activity values on a 0–100 scale, matching the chart in the screenshot
 const WEEK_DATA = {
   values: [35, 52, 78, 62, 38, 65],
   labels: ['Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
 };
 
-// Accuracy topics — each has a name, percentage, and bar colour
+// Accuracy topics — bar colours kept as data-driven semantic colours
 const TOPICS = [
-  { name: 'Options Basics',    pct: 80, color: '#00C853' },
+  { name: 'Options Basics',    pct: 80, color: GREEN },
   { name: 'Pricing & Premium', pct: 60, color: '#FFC107' },
 ];
 
-// Stats shown beneath the quote card
 const STATS = [
   { icon: 'fire',              value: '7', label: 'Streak',  iconColor: '#FF7043' },
-  { icon: 'book-open-variant', value: '5', label: 'Lessons', iconColor: '#00E676' },
-  { icon: 'bullseye',          value: '2', label: 'Quizzes', iconColor: '#00E676' },
+  { icon: 'book-open-variant', value: '5', label: 'Lessons', iconColor: GREEN     },
+  { icon: 'bullseye',          value: '2', label: 'Quizzes', iconColor: GREEN     },
 ];
 
-// Bottom tab bar items — Profile is the active one on this screen
 const TABS = [
   { icon: 'home',             label: 'Home',    active: false },
   { icon: 'book-open-variant',label: 'Learn',   active: false },
@@ -51,14 +57,13 @@ const TABS = [
 function SparkLine({ values, labels }) {
   const [containerWidth, setContainerWidth] = useState(0);
   const CHART_HEIGHT = 72;
-  const VERTICAL_PADDING = 10; // keeps dots away from the very top and bottom edges
+  const VERTICAL_PADDING = 10;
   const n = values.length;
 
   const dataMax = Math.max(...values);
   const dataMin = Math.min(...values);
   const dataRange = dataMax - dataMin || 1;
 
-  // Convert a data index to a pixel (x, y) coordinate inside the container
   const getPoint = (i) => ({
     x: n === 1 ? containerWidth / 2 : (i / (n - 1)) * containerWidth,
     y:
@@ -69,7 +74,7 @@ function SparkLine({ values, labels }) {
 
   return (
     <View>
-      {/* Chart drawing area — onLayout tells us the real pixel width at runtime */}
+      {/* Chart drawing area */}
       <View
         style={{ height: CHART_HEIGHT, position: 'relative' }}
         onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
@@ -78,14 +83,13 @@ function SparkLine({ values, labels }) {
           <>
             {/* Line segments between adjacent data points */}
             {values.map((_, i) => {
-              if (i === n - 1) return null; // no segment after the last point
+              if (i === n - 1) return null;
               const p1 = getPoint(i);
               const p2 = getPoint(i + 1);
               const dx = p2.x - p1.x;
               const dy = p2.y - p1.y;
               const length = Math.sqrt(dx * dx + dy * dy);
               const angleDeg = Math.atan2(dy, dx) * (180 / Math.PI);
-              // Centre the View at the midpoint so rotation lands on p1→p2
               const midX = (p1.x + p2.x) / 2;
               const midY = (p1.y + p2.y) / 2;
               return (
@@ -94,10 +98,10 @@ function SparkLine({ values, labels }) {
                   style={{
                     position: 'absolute',
                     left: midX - length / 2,
-                    top: midY - 1.5,  // 1.5 = half of height (3px)
+                    top: midY - 1.5,
                     width: length,
                     height: 3,
-                    backgroundColor: '#00C853',
+                    backgroundColor: GREEN,
                     borderRadius: 2,
                     transform: [{ rotate: `${angleDeg}deg` }],
                   }}
@@ -105,7 +109,7 @@ function SparkLine({ values, labels }) {
               );
             })}
 
-            {/* Dots at each data point, rendered on top of the lines */}
+            {/* Dots at each data point */}
             {values.map((_, i) => {
               const { x, y } = getPoint(i);
               return (
@@ -118,7 +122,7 @@ function SparkLine({ values, labels }) {
                     width: 8,
                     height: 8,
                     borderRadius: 4,
-                    backgroundColor: '#00C853',
+                    backgroundColor: GREEN,
                   }}
                 />
               );
@@ -127,7 +131,7 @@ function SparkLine({ values, labels }) {
         )}
       </View>
 
-      {/* Day labels below the chart, evenly spaced to match the dots */}
+      {/* Day labels below the chart */}
       <View style={styles.chartLabels}>
         {labels.map((day) => (
           <Text key={day} style={styles.chartDay}>{day}</Text>
@@ -139,7 +143,6 @@ function SparkLine({ values, labels }) {
 
 // ─── ProfileScreen ────────────────────────────────────────────────────────────
 export default function ProfileScreen({ navigation }) {
-  // Maps a custom tab bar label to the correct React Navigation tab name
   const handleTabPress = (label) => {
     if (label === 'Home')    navigation.navigate('Home');
     if (label === 'Learn')   navigation.navigate('Lesson');
@@ -148,8 +151,7 @@ export default function ProfileScreen({ navigation }) {
   };
 
   return (
-    // Full-screen dark-green gradient — same colours as the onboarding screen
-    <LinearGradient colors={['#0A2E1A', '#0D3B22']} style={styles.gradient}>
+    <View style={styles.screen}>
       <StatusBar style="light" />
       <SafeAreaView style={styles.safeArea}>
 
@@ -160,7 +162,7 @@ export default function ProfileScreen({ navigation }) {
         >
 
           {/* ══════════════════════════════════════════════
-              SECTION 1 — Dark-green header
+              SECTION 1 — Profile header
               Avatar, title, quote, and three stats cards
           ══════════════════════════════════════════════ */}
           <View style={styles.header}>
@@ -176,7 +178,7 @@ export default function ProfileScreen({ navigation }) {
               </View>
             </View>
 
-            {/* Quote shown in a slightly darker inset card */}
+            {/* Quote shown in an inset card */}
             <View style={styles.quoteCard}>
               <Text style={styles.quoteText}>
                 "Calculated, patient, and rarely wrong."
@@ -197,98 +199,93 @@ export default function ProfileScreen({ navigation }) {
           </View>
 
           {/* ══════════════════════════════════════════════
-              SECTION 2 — Light sheet
-              White/light-grey panel that slides up over the header.
-              Each card inside sits on the sheet background.
+              SECTION 2 — Content cards
+              All cards share the same CARD_BG / BORDER style
           ══════════════════════════════════════════════ */}
-          <View style={styles.sheet}>
 
-            {/* ── XP progress card ── */}
-            <View style={styles.card}>
-              {/* Top row: icon + XP total (left) and level number (right) */}
-              <View style={styles.xpRow}>
-                <View style={styles.xpLeft}>
-                  <View style={styles.xpIconBox}>
-                    <MaterialCommunityIcons name="lightning-bolt" size={18} color="#1B5E20" />
-                  </View>
-                  <View>
-                    <Text style={styles.xpLabel}>Total XP</Text>
-                    <Text style={styles.xpAmount}>340 XP</Text>
-                  </View>
+          {/* ── XP progress card ── */}
+          <View style={styles.card}>
+            <View style={styles.xpRow}>
+              <View style={styles.xpLeft}>
+                <View style={styles.xpIconBox}>
+                  <MaterialCommunityIcons name="lightning-bolt" size={18} color={GREEN} />
                 </View>
-                <View style={styles.xpRight}>
-                  <Text style={styles.levelLabel}>Level</Text>
-                  <Text style={styles.levelNumber}>4</Text>
+                <View>
+                  <Text style={styles.xpLabel}>Total XP</Text>
+                  <Text style={styles.xpAmount}>340 XP</Text>
                 </View>
               </View>
-
-              {/* Green progress bar — 85 % filled to show 340 / 400 XP */}
-              <View style={styles.progressTrack}>
-                <View style={[styles.progressFill, { width: '85%', backgroundColor: '#00C853' }]} />
+              <View style={styles.xpRight}>
+                <Text style={styles.levelLabel}>Level</Text>
+                <Text style={styles.levelNumber}>4</Text>
               </View>
-              <Text style={styles.xpNextLabel}>60 XP to Level 5</Text>
             </View>
 
-            {/* ── This Week activity chart card ── */}
-            <View style={styles.card}>
-              <Text style={styles.cardHeading}>THIS WEEK</Text>
-              <SparkLine values={WEEK_DATA.values} labels={WEEK_DATA.labels} />
+            {/* Green progress bar — 85 % filled to show 340 / 400 XP */}
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: '85%', backgroundColor: GREEN }]} />
+            </View>
+            <Text style={styles.xpNextLabel}>60 XP to Level 5</Text>
+          </View>
+
+          {/* ── This Week activity chart card ── */}
+          <View style={styles.card}>
+            <Text style={styles.cardHeading}>THIS WEEK</Text>
+            <SparkLine values={WEEK_DATA.values} labels={WEEK_DATA.labels} />
+          </View>
+
+          {/* ── Accuracy by Topic card ── */}
+          <View style={styles.card}>
+            <Text style={styles.cardHeading}>ACCURACY BY TOPIC</Text>
+            {TOPICS.map((t) => (
+              <View key={t.name} style={styles.topicBlock}>
+                <View style={styles.topicHeaderRow}>
+                  <Text style={styles.topicName}>{t.name}</Text>
+                  <Text style={[styles.topicPct, { color: t.color }]}>{t.pct}%</Text>
+                </View>
+                <View style={styles.progressTrack}>
+                  <View
+                    style={[
+                      styles.progressFill,
+                      { width: `${t.pct}%`, backgroundColor: t.color },
+                    ]}
+                  />
+                </View>
+              </View>
+            ))}
+          </View>
+
+          {/* ── Badges card ── */}
+          <View style={styles.card}>
+            <View style={styles.badgesHeader}>
+              <Text style={styles.badgesTitle}>BADGES — 3/8</Text>
+              <TouchableOpacity style={styles.allBtn} activeOpacity={0.7}>
+                <Text style={styles.allBtnText}>All</Text>
+                <MaterialCommunityIcons name="chevron-down" size={16} color={GREY} />
+              </TouchableOpacity>
             </View>
 
-            {/* ── Accuracy by Topic card ── */}
-            <View style={styles.card}>
-              <Text style={styles.cardHeading}>ACCURACY BY TOPIC</Text>
-              {TOPICS.map((t) => (
-                <View key={t.name} style={styles.topicBlock}>
-                  <View style={styles.topicHeaderRow}>
-                    <Text style={styles.topicName}>{t.name}</Text>
-                    <Text style={[styles.topicPct, { color: t.color }]}>{t.pct}%</Text>
-                  </View>
-                  <View style={styles.progressTrack}>
-                    <View
-                      style={[
-                        styles.progressFill,
-                        { width: `${t.pct}%`, backgroundColor: t.color },
-                      ]}
-                    />
-                  </View>
+            {/* Eight badge slots: first 3 earned (green star), rest locked */}
+            <View style={styles.badgeGrid}>
+              {Array.from({ length: 8 }).map((_, i) => (
+                <View
+                  key={i}
+                  style={[styles.badgeSlot, i >= 3 && styles.badgeSlotLocked]}
+                >
+                  <MaterialCommunityIcons
+                    name={i < 3 ? 'star' : 'lock-outline'}
+                    size={22}
+                    color={i < 3 ? GREEN : GREY}
+                  />
                 </View>
               ))}
             </View>
-
-            {/* ── Badges card ── */}
-            <View style={styles.card}>
-              <View style={styles.badgesHeader}>
-                <Text style={styles.badgesTitle}>BADGES — 3/8</Text>
-                <TouchableOpacity style={styles.allBtn} activeOpacity={0.7}>
-                  <Text style={styles.allBtnText}>All</Text>
-                  <MaterialCommunityIcons name="chevron-down" size={16} color="#555" />
-                </TouchableOpacity>
-              </View>
-
-              {/* Eight badge slots: first 3 earned (green star), rest locked */}
-              <View style={styles.badgeGrid}>
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <View
-                    key={i}
-                    style={[styles.badgeSlot, i >= 3 && styles.badgeSlotLocked]}
-                  >
-                    <MaterialCommunityIcons
-                      name={i < 3 ? 'star' : 'lock-outline'}
-                      size={22}
-                      color={i < 3 ? '#00C853' : '#BDBDBD'}
-                    />
-                  </View>
-                ))}
-              </View>
-            </View>
-
           </View>
+
         </ScrollView>
 
         {/* ══════════════════════════════════════════════
             BOTTOM TAB BAR — always visible at the foot
-            Profile tab is highlighted in teal
         ══════════════════════════════════════════════ */}
         <View style={styles.tabBar}>
           {TABS.map((tab) => (
@@ -296,7 +293,7 @@ export default function ProfileScreen({ navigation }) {
               <MaterialCommunityIcons
                 name={tab.icon}
                 size={22}
-                color={tab.active ? '#00897B' : '#9E9E9E'}
+                color={tab.active ? GREEN : GREY}
               />
               <Text style={[styles.tabLabel, tab.active && styles.tabLabelActive]}>
                 {tab.label}
@@ -306,26 +303,24 @@ export default function ProfileScreen({ navigation }) {
         </View>
 
       </SafeAreaView>
-    </LinearGradient>
+    </View>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
 
-  // Full-screen gradient container
-  gradient:  { flex: 1 },
-  safeArea:  { flex: 1 },
-  scroll:    { flex: 1 },
+  screen:        { flex: 1, backgroundColor: BG },
+  safeArea:      { flex: 1 },
+  scroll:        { flex: 1 },
   scrollContent: { paddingBottom: 16 },
 
-  // ── Header (dark green) ──
+  // ── Profile header ──
   header: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingTop: 20,
-    paddingBottom: 32,
+    paddingBottom: 24,
   },
-
   avatarRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -336,84 +331,76 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#00897B',
+    backgroundColor: GREEN,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarLetter: {
-    color: '#FFFFFF',
+    color: BG,
     fontSize: 22,
-    fontWeight: 'bold',
+    fontWeight: '800',
   },
   yourTitle: {
-    color: '#8FBC8F',
+    color: LIGHT_GREY,
     fontSize: 11,
     fontWeight: '600',
     letterSpacing: 1.2,
     marginBottom: 2,
   },
   titleName: {
-    color: '#FFFFFF',
+    color: WHITE,
     fontSize: 22,
-    fontWeight: 'bold',
+    fontWeight: '800',
   },
-
   quoteCard: {
-    backgroundColor: 'rgba(0, 0, 0, 0.20)',
-    borderRadius: 12,
-    padding: 14,
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: BORDER,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
     marginBottom: 16,
   },
   quoteText: {
-    color: '#D4EDDA',
+    color: LIGHT_GREY,
     fontSize: 14,
     fontStyle: 'italic',
     lineHeight: 20,
   },
-
   statsRow: {
     flexDirection: 'row',
     gap: 10,
   },
   statCard: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.18)',
-    borderRadius: 12,
-    paddingVertical: 12,
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: BORDER,
+    paddingVertical: 14,
     alignItems: 'center',
     gap: 4,
   },
   statValue: {
-    color: '#FFFFFF',
+    color: WHITE,
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
   statLabel: {
-    color: '#8FBC8F',
+    color: GREY,
     fontSize: 11,
   },
 
-  // ── Light sheet ──
-  sheet: {
-    backgroundColor: '#F2F5F2',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 8,
-    gap: 14,
-  },
-
-  // White card on the light sheet
+  // ── Content cards (shared style matching OnboardingScreen cards) ──
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: CARD_BG,
     borderRadius: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: BORDER,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    marginHorizontal: 24,
+    marginBottom: 14,
   },
 
   // ── XP card ──
@@ -431,36 +418,34 @@ const styles = StyleSheet.create({
   xpIconBox: {
     width: 36,
     height: 36,
-    borderRadius: 8,
-    backgroundColor: '#E8F5E9',
+    borderRadius: 10,
+    backgroundColor: GREEN_TINT,
     alignItems: 'center',
     justifyContent: 'center',
   },
   xpLabel: {
-    color: '#9E9E9E',
+    color: GREY,
     fontSize: 12,
     marginBottom: 2,
   },
   xpAmount: {
-    color: '#1A2E1A',
+    color: WHITE,
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
-  xpRight: {
-    alignItems: 'flex-end',
-  },
+  xpRight: { alignItems: 'flex-end' },
   levelLabel: {
-    color: '#9E9E9E',
+    color: GREY,
     fontSize: 12,
   },
   levelNumber: {
-    color: '#1A2E1A',
+    color: WHITE,
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: '800',
   },
   progressTrack: {
     height: 8,
-    backgroundColor: '#E0E0E0',
+    backgroundColor: BORDER,
     borderRadius: 4,
     overflow: 'hidden',
     marginBottom: 6,
@@ -470,16 +455,16 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   xpNextLabel: {
-    color: '#9E9E9E',
+    color: GREY,
     fontSize: 12,
   },
 
-  // ── Shared card heading (e.g. "THIS WEEK", "ACCURACY BY TOPIC") ──
+  // ── Shared card heading (e.g. "THIS WEEK") ──
   cardHeading: {
-    color: '#2E7D32',
-    fontSize: 12,
+    color: GREEN,
+    fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 1,
+    letterSpacing: 1.4,
     marginBottom: 14,
   },
 
@@ -490,22 +475,20 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   chartDay: {
-    color: '#9E9E9E',
+    color: GREY,
     fontSize: 12,
     textAlign: 'center',
   },
 
   // ── Accuracy topic rows ──
-  topicBlock: {
-    marginBottom: 14,
-  },
+  topicBlock: { marginBottom: 14 },
   topicHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 6,
   },
   topicName: {
-    color: '#1A2E1A',
+    color: WHITE,
     fontWeight: '600',
     fontSize: 14,
   },
@@ -522,7 +505,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   badgesTitle: {
-    color: '#1A2E1A',
+    color: WHITE,
     fontWeight: '700',
     fontSize: 14,
     letterSpacing: 0.5,
@@ -533,7 +516,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   allBtnText: {
-    color: '#555',
+    color: GREY,
     fontSize: 13,
   },
   badgeGrid: {
@@ -545,12 +528,14 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#E8F5E9',
+    backgroundColor: GREEN_TINT,
     alignItems: 'center',
     justifyContent: 'center',
   },
   badgeSlotLocked: {
-    backgroundColor: '#F5F5F5',
+    backgroundColor: CARD_BG,
+    borderWidth: 1,
+    borderColor: BORDER,
   },
 
   // ── Bottom tab bar ──
@@ -558,10 +543,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: CARD_BG,
     height: 64,
     borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
+    borderTopColor: BORDER,
   },
   tabItem: {
     alignItems: 'center',
@@ -569,10 +554,10 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     fontSize: 11,
-    color: '#9E9E9E',
+    color: GREY,
   },
   tabLabelActive: {
-    color: '#00897B',
+    color: GREEN,
     fontWeight: '600',
   },
 });

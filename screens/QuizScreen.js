@@ -8,10 +8,19 @@ import {
   SafeAreaView,
   ScrollView,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// ─── Design tokens — matches OnboardingScreen ─────────────────────────────────
+const GREEN      = '#00C853';
+const GREEN_TINT = 'rgba(0, 200, 83, 0.15)';
+const BG         = '#0A0E1A';
+const CARD_BG    = '#131929';
+const BORDER     = '#1E2A3D';
+const WHITE      = '#FFFFFF';
+const GREY       = '#6B7A8D';
+const LIGHT_GREY = '#8A96A8';
 
 // ─── Quiz topic data ──────────────────────────────────────────────────────────
 // Each object becomes one tappable row card. Add more topics here when needed.
@@ -33,8 +42,7 @@ const TOPICS = [
   },
 ];
 
-// Bottom tab bar — Quiz is the active tab on this screen.
-// The active tab gets a special circular highlight behind its icon.
+// Bottom tab bar — Quiz is the active tab on this screen
 const TABS = [
   { icon: 'home',              label: 'Home',    active: false },
   { icon: 'book-open-variant', label: 'Learn',   active: false },
@@ -45,18 +53,16 @@ const TABS = [
 
 // ─── QuizScreen ───────────────────────────────────────────────────────────────
 export default function QuizScreen({ navigation }) {
-  // Called when the user taps any topic card.
-  // We treat selecting a topic as "completing" the quiz for now.
-  // This writes the onboarding flag to storage, then resets the navigation
-  // stack so the user cannot press the back button back into onboarding.
+  // Tapping any topic card counts as completing the quiz.
+  // Marks onboarding done in storage and resets the navigation stack to Main
+  // so the user can never press back into the onboarding flow.
   const handleTopicSelect = async () => {
     await AsyncStorage.setItem('@onboarding_complete', 'true');
     navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
   };
 
   return (
-    // Same dark-green gradient as the onboarding and profile screens
-    <LinearGradient colors={['#0A2E1A', '#0D3B22']} style={styles.gradient}>
+    <View style={styles.screen}>
       <StatusBar style="light" />
       <SafeAreaView style={styles.safeArea}>
 
@@ -72,7 +78,7 @@ export default function QuizScreen({ navigation }) {
           ══════════════════════════════════════════════ */}
           <View style={styles.navBar}>
             <TouchableOpacity style={styles.closeBtn} activeOpacity={0.7} onPress={() => navigation.goBack()}>
-              <MaterialCommunityIcons name="close" size={20} color="#8FBC8F" />
+              <MaterialCommunityIcons name="close" size={20} color={LIGHT_GREY} />
             </TouchableOpacity>
             <Text style={styles.navTitle}>Skill Quiz</Text>
           </View>
@@ -102,11 +108,7 @@ export default function QuizScreen({ navigation }) {
               >
                 {/* Medal icon in a small rounded square on the left */}
                 <View style={styles.topicIconBox}>
-                  <MaterialCommunityIcons
-                    name="medal-outline"
-                    size={22}
-                    color="#00E676"
-                  />
+                  <MaterialCommunityIcons name="medal-outline" size={22} color={GREEN} />
                 </View>
 
                 {/* Topic name and short description in the centre */}
@@ -116,11 +118,7 @@ export default function QuizScreen({ navigation }) {
                 </View>
 
                 {/* Right-pointing chevron arrow */}
-                <MaterialCommunityIcons
-                  name="chevron-right"
-                  size={22}
-                  color="#4CAF50"
-                />
+                <MaterialCommunityIcons name="chevron-right" size={22} color={GREEN} />
               </TouchableOpacity>
             ))}
           </View>
@@ -148,17 +146,13 @@ export default function QuizScreen({ navigation }) {
         <View style={styles.tabBar}>
           {TABS.map((tab) => (
             <TouchableOpacity key={tab.label} style={styles.tabItem} activeOpacity={0.7}>
-              {/* Wrap the active icon in a circle highlight; others get no wrapper */}
+              {/* Wrap the active icon in a circle highlight; others render directly */}
               {tab.active ? (
                 <View style={styles.activeTabIcon}>
-                  <MaterialCommunityIcons name={tab.icon} size={22} color="#00E676" />
+                  <MaterialCommunityIcons name={tab.icon} size={22} color={GREEN} />
                 </View>
               ) : (
-                <MaterialCommunityIcons
-                  name={tab.icon}
-                  size={22}
-                  color="rgba(255,255,255,0.45)"
-                />
+                <MaterialCommunityIcons name={tab.icon} size={22} color={GREY} />
               )}
               <Text style={[styles.tabLabel, tab.active && styles.tabLabelActive]}>
                 {tab.label}
@@ -168,54 +162,48 @@ export default function QuizScreen({ navigation }) {
         </View>
 
       </SafeAreaView>
-    </LinearGradient>
+    </View>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
 
-  // Full-screen gradient background
-  gradient: { flex: 1 },
+  screen:   { flex: 1, backgroundColor: BG },
   safeArea: { flex: 1 },
 
-  // ScrollView padding — left/right consistent with other screens, generous bottom gap
   scrollContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingTop: 12,
     paddingBottom: 32,
   },
 
   // ── Nav bar ──
-  // Thin row at the top: × on the left, title text immediately after
   navBar: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 28,
     gap: 10,
   },
-  closeBtn: {
-    padding: 4, // extra tap area without changing visual size
-  },
+  closeBtn: { padding: 4 },
   navTitle: {
-    color: '#FFFFFF',
+    color: WHITE,
     fontSize: 16,
     fontWeight: '600',
   },
 
   // ── Page heading ──
-  headingBlock: {
-    marginBottom: 28,
-  },
+  headingBlock: { marginBottom: 28 },
   heading: {
-    color: '#FFFFFF',
+    color: WHITE,
     fontSize: 28,
-    fontWeight: 'bold',
+    fontWeight: '800',
+    letterSpacing: -0.5,
     marginBottom: 6,
   },
   descriptor: {
-    color: '#4CAF50',
-    fontSize: 13,
+    color: LIGHT_GREY,
+    fontSize: 14,
     lineHeight: 20,
   },
 
@@ -225,68 +213,69 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
 
-  // Individual topic card: semi-transparent lighter-green rectangle
+  // Dark background, border, rounded corners — matches OnboardingScreen card
   topicCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    backgroundColor: CARD_BG,
     borderRadius: 16,
-    padding: 16,
+    borderWidth: 1,
+    borderColor: BORDER,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
   },
 
-  // Small rounded square that holds the medal icon
+  // Green-tinted icon bubble — matches OnboardingScreen iconBubble
   topicIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: 'rgba(0, 230, 118, 0.12)',
+    width: 46,
+    height: 46,
+    borderRadius: 13,
+    backgroundColor: GREEN_TINT,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
   },
 
-  // Text column stretches to fill the space between icon and chevron
-  topicText: {
-    flex: 1,
-  },
+  topicText: { flex: 1 },
   topicTitle: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
+    color: WHITE,
+    fontSize: 15,
+    fontWeight: '700',
     marginBottom: 3,
   },
   topicSubtitle: {
-    color: '#8FBC8F',
+    color: GREY,
     fontSize: 13,
+    lineHeight: 18,
   },
 
-  // ── How it works info box ──
-  // Same semi-transparent treatment as the topic cards but no tap state
+  // ── Info box — same card treatment as topic cards ──
   infoBox: {
-    backgroundColor: 'rgba(255, 255, 255, 0.07)',
-    borderRadius: 14,
-    padding: 16,
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: BORDER,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
   },
   infoText: {
-    color: '#8FBC8F',
+    color: LIGHT_GREY,
     fontSize: 13,
     lineHeight: 21,
   },
-  // Bold green prefix "How it works:" inside the same <Text>
   infoBold: {
-    color: '#4CAF50',
+    color: GREEN,
     fontWeight: '700',
   },
 
   // ── Bottom tab bar ──
-  // Sits outside the ScrollView so it never scrolls away
   tabBar: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.06)',
-    backgroundColor: 'rgba(0,0,0,0.18)',
+    borderTopColor: BORDER,
+    backgroundColor: CARD_BG,
     height: 64,
     paddingBottom: 4,
   },
@@ -296,10 +285,10 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     fontSize: 11,
-    color: 'rgba(255,255,255,0.45)',
+    color: GREY,
   },
   tabLabelActive: {
-    color: '#00E676',
+    color: GREEN,
     fontWeight: '600',
   },
 
@@ -309,8 +298,8 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     borderWidth: 1.5,
-    borderColor: 'rgba(0,230,118,0.45)',
-    backgroundColor: 'rgba(0,230,118,0.10)',
+    borderColor: GREEN,
+    backgroundColor: GREEN_TINT,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -8,18 +8,27 @@ import {
   SafeAreaView,
   ScrollView,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
+
+// ─── Design tokens — matches OnboardingScreen ─────────────────────────────────
+const GREEN      = '#00C853';
+const GREEN_TINT = 'rgba(0, 200, 83, 0.15)';
+const BG         = '#0A0E1A';
+const CARD_BG    = '#131929';
+const BORDER     = '#1E2A3D';
+const WHITE      = '#FFFFFF';
+const GREY       = '#6B7A8D';
+const LIGHT_GREY = '#8A96A8';
 
 // ─── Lesson data ──────────────────────────────────────────────────────────────
 // Change these values to reuse this screen for a different lesson
 const LESSON = {
   title: 'What is a Call Option?',
-  totalSteps: 5,     // used to calculate how full the progress bar is
-  currentStep: 1,    // step 1 of 5 → bar is 20% filled
-  lives: 3,          // number of hearts shown in the top-right
-  xpEarned: 0,       // XP accumulated so far this lesson
+  totalSteps: 5,
+  currentStep: 1,
+  lives: 3,
+  xpEarned: 0,
   body:
     'A call option gives you the right — but not the obligation — to buy 100 shares of ' +
     'a stock at a fixed price (called the strike price) before a specific date (the ' +
@@ -38,11 +47,9 @@ const TABS = [
 
 // ─── LessonScreen ─────────────────────────────────────────────────────────────
 export default function LessonScreen({ navigation }) {
-  // How much of the progress bar to fill (e.g. step 1 of 5 → 20%)
   const progressPercent = `${(LESSON.currentStep / LESSON.totalSteps) * 100}%`;
 
   // Maps a custom tab bar label to the correct React Navigation tab name.
-  // 'Lesson' is the Tab.Screen name we registered in App.js for LessonScreen.
   const handleTabPress = (label) => {
     if (label === 'Home')    navigation.navigate('Home');
     if (label === 'Learn')   navigation.navigate('Lesson');
@@ -51,38 +58,31 @@ export default function LessonScreen({ navigation }) {
   };
 
   return (
-    // Same dark-green gradient used on every screen in the app
-    <LinearGradient colors={['#0A2E1A', '#0D3B22']} style={styles.gradient}>
+    <View style={styles.screen}>
       <StatusBar style="light" />
       <SafeAreaView style={styles.safeArea}>
 
         {/* ══════════════════════════════════════════════
             SECTION 1 — Top bar
-            Three elements in a row:
-              Left   → × close button
-              Centre → thin progress bar (how far through the lesson)
-              Right  → red hearts (lives) + lightning bolt XP counter
+            Left: × close | Centre: progress bar | Right: lives + XP
         ══════════════════════════════════════════════ */}
         <View style={styles.topBar}>
 
           {/* Close / exit button */}
           <TouchableOpacity style={styles.closeBtn} activeOpacity={0.7} onPress={() => navigation.navigate('Home')}>
-            <MaterialCommunityIcons name="close" size={20} color="#8FBC8F" />
+            <MaterialCommunityIcons name="close" size={20} color={LIGHT_GREY} />
           </TouchableOpacity>
 
-          {/* Progress bar: outer track (dark) + inner fill (green) */}
+          {/* Progress bar: outer track + inner fill */}
           <View style={styles.progressTrack}>
             <View style={[styles.progressFill, { width: progressPercent }]} />
           </View>
 
-          {/* Lives and XP — displayed as a tight horizontal group */}
+          {/* Lives and XP */}
           <View style={styles.statusGroup}>
-            {/* Render one heart icon per remaining life */}
             {Array.from({ length: LESSON.lives }).map((_, i) => (
               <MaterialCommunityIcons key={i} name="heart" size={17} color="#F44336" />
             ))}
-
-            {/* XP pill: lightning bolt + number */}
             <View style={styles.xpPill}>
               <MaterialCommunityIcons name="lightning-bolt" size={13} color="#FFD600" />
               <Text style={styles.xpText}>{LESSON.xpEarned}</Text>
@@ -93,8 +93,6 @@ export default function LessonScreen({ navigation }) {
 
         {/* ══════════════════════════════════════════════
             SECTION 2 — Scrollable lesson content
-            Everything between the top bar and the
-            Continue button can scroll on small screens
         ══════════════════════════════════════════════ */}
         <ScrollView
           style={styles.scroll}
@@ -105,17 +103,11 @@ export default function LessonScreen({ navigation }) {
           {/* Small green "LESSON" category tag above the title */}
           <Text style={styles.lessonTag}>LESSON</Text>
 
-          {/* Main lesson title — large and bold */}
+          {/* Main lesson title */}
           <Text style={styles.lessonTitle}>{LESSON.title}</Text>
 
-          {/* ── Concept diagram card ──────────────────────────
-              Visual showing the relationship between what you
-              pay (the Premium) and what you lock in (Strike Price).
-              Layout: [You Pay / Premium] › [Strike Price / $150]
-              ─────────────────────────────────────────────── */}
+          {/* ── Concept diagram card ── */}
           <View style={styles.diagramCard}>
-
-            {/* Two info boxes connected by a right-arrow chevron */}
             <View style={styles.diagramRow}>
 
               {/* Left box — the cost side */}
@@ -124,8 +116,7 @@ export default function LessonScreen({ navigation }) {
                 <Text style={styles.diagramBoxGreen}>Premium</Text>
               </View>
 
-              {/* Arrow between the two concepts */}
-              <MaterialCommunityIcons name="chevron-right" size={22} color="#8FBC8F" />
+              <MaterialCommunityIcons name="chevron-right" size={22} color={GREY} />
 
               {/* Right box — the benefit side */}
               <View style={styles.diagramBox}>
@@ -139,13 +130,10 @@ export default function LessonScreen({ navigation }) {
             <Text style={styles.diagramFooter}>CALL OPTION</Text>
           </View>
 
-          {/* ── Body explanation paragraph ───────────────────── */}
+          {/* ── Body explanation paragraph ── */}
           <Text style={styles.bodyText}>{LESSON.body}</Text>
 
-          {/* ── Tip box ─────────────────────────────────────────
-              A highlighted hint with a yellow lightbulb icon.
-              The icon and text sit side-by-side in a row.
-              ─────────────────────────────────────────────── */}
+          {/* ── Tip box ── */}
           <View style={styles.tipBox}>
             <MaterialCommunityIcons
               name="lightbulb-outline"
@@ -160,9 +148,7 @@ export default function LessonScreen({ navigation }) {
 
         {/* ══════════════════════════════════════════════
             SECTION 3 — Continue button
-            Pinned above the tab bar; full-width pill
-            shape matching the onboarding "Get Started"
-            button so the design stays consistent
+            Pinned above the tab bar; matches OnboardingScreen button style
         ══════════════════════════════════════════════ */}
         <View style={styles.continueSection}>
           <TouchableOpacity style={styles.continueBtn} activeOpacity={0.85} onPress={() => navigation.navigate('Home')}>
@@ -172,7 +158,6 @@ export default function LessonScreen({ navigation }) {
 
         {/* ══════════════════════════════════════════════
             BOTTOM TAB BAR
-            Sits outside the ScrollView so it never scrolls.
             Learn tab is highlighted green.
         ══════════════════════════════════════════════ */}
         <View style={styles.tabBar}>
@@ -181,7 +166,7 @@ export default function LessonScreen({ navigation }) {
               <MaterialCommunityIcons
                 name={tab.icon}
                 size={22}
-                color={tab.active ? '#00E676' : 'rgba(255,255,255,0.45)'}
+                color={tab.active ? GREEN : GREY}
               />
               <Text style={[styles.tabLabel, tab.active && styles.tabLabelActive]}>
                 {tab.label}
@@ -191,45 +176,38 @@ export default function LessonScreen({ navigation }) {
         </View>
 
       </SafeAreaView>
-    </LinearGradient>
+    </View>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
 
-  // Full-screen gradient
-  gradient: { flex: 1 },
-  safeArea:  { flex: 1 },
+  screen:  { flex: 1, backgroundColor: BG },
+  safeArea: { flex: 1 },
 
   // ── Top bar ──
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 24,
     paddingTop: 10,
     paddingBottom: 14,
     gap: 12,
   },
-  closeBtn: {
-    padding: 4, // extra tap area without changing visual size
-  },
-
-  // Thin pill track that spans all the space between the close button and the status group
+  closeBtn: { padding: 4 },
   progressTrack: {
     flex: 1,
     height: 6,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: BORDER,
     borderRadius: 3,
     overflow: 'hidden',
   },
   progressFill: {
     height: 6,
-    backgroundColor: '#00E676',
+    backgroundColor: GREEN,
     borderRadius: 3,
   },
-
-  // Heart icons + XP pill sit tightly together
   statusGroup: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -238,7 +216,9 @@ const styles = StyleSheet.create({
   xpPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: CARD_BG,
+    borderWidth: 1,
+    borderColor: BORDER,
     borderRadius: 10,
     paddingHorizontal: 7,
     paddingVertical: 3,
@@ -246,7 +226,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   xpText: {
-    color: '#FFFFFF',
+    color: WHITE,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -254,14 +234,14 @@ const styles = StyleSheet.create({
   // ── Scroll area ──
   scroll:        { flex: 1 },
   scrollContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingTop: 6,
     paddingBottom: 16,
   },
 
-  // Small uppercase tag above the title
+  // Small uppercase tag
   lessonTag: {
-    color: '#4CAF50',
+    color: GREEN,
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1.4,
@@ -270,18 +250,22 @@ const styles = StyleSheet.create({
 
   // Large bold lesson title
   lessonTitle: {
-    color: '#FFFFFF',
-    fontSize: 26,
-    fontWeight: 'bold',
-    lineHeight: 34,
+    color: WHITE,
+    fontSize: 28,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+    lineHeight: 36,
     marginBottom: 24,
   },
 
   // ── Concept diagram card ──
   diagramCard: {
-    backgroundColor: 'rgba(255,255,255,0.07)',
+    backgroundColor: CARD_BG,
     borderRadius: 16,
-    padding: 20,
+    borderWidth: 1,
+    borderColor: BORDER,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
     alignItems: 'center',
     marginBottom: 24,
   },
@@ -292,37 +276,33 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     width: '100%',
   },
-
-  // Each of the two inner boxes (left: Premium, right: $150)
   diagramBox: {
     flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.07)',
-    borderRadius: 12,
+    backgroundColor: BG,
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: BORDER,
     paddingVertical: 14,
     paddingHorizontal: 10,
     alignItems: 'center',
   },
-  // Small grey-green label above the value in each box
   diagramBoxLabel: {
-    color: '#8FBC8F',
+    color: GREY,
     fontSize: 11,
     marginBottom: 6,
   },
-  // Green value — used for the cost/premium side
   diagramBoxGreen: {
-    color: '#00E676',
+    color: GREEN,
     fontSize: 17,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
-  // White value — used for the strike price side
   diagramBoxWhite: {
-    color: '#FFFFFF',
+    color: WHITE,
     fontSize: 17,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
-  // "CALL OPTION" caption centred below the two boxes
   diagramFooter: {
-    color: '#4CAF50',
+    color: GREEN,
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1.4,
@@ -330,49 +310,49 @@ const styles = StyleSheet.create({
 
   // ── Body text ──
   bodyText: {
-    color: '#FFFFFF',
+    color: WHITE,
     fontSize: 15,
     lineHeight: 25,
     marginBottom: 20,
   },
 
   // ── Tip box ──
-  // Horizontal row: lightbulb icon on the left, tip text on the right
   tipBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: 'rgba(255,255,255,0.07)',
-    borderRadius: 14,
-    padding: 16,
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: BORDER,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
     gap: 10,
   },
-  tipIcon: {
-    marginTop: 1, // nudge icon down so it aligns with the first text line
-  },
+  tipIcon: { marginTop: 1 },
   tipText: {
     flex: 1,
-    color: '#C8E6C9',
+    color: LIGHT_GREY,
     fontSize: 13,
     lineHeight: 20,
     fontWeight: '500',
   },
 
-  // ── Continue button ──
+  // ── Continue button — matches OnboardingScreen primaryBtn ──
   continueSection: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingVertical: 12,
   },
   continueBtn: {
-    backgroundColor: '#00E676',
-    borderRadius: 28,
-    height: 52,
+    backgroundColor: GREEN,
+    borderRadius: 16,
+    paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
   continueBtnText: {
-    color: '#000000',
+    color: WHITE,
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '700',
     letterSpacing: 0.3,
   },
 
@@ -384,8 +364,8 @@ const styles = StyleSheet.create({
     height: 64,
     paddingBottom: 4,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.06)',
-    backgroundColor: 'rgba(0,0,0,0.18)',
+    borderTopColor: BORDER,
+    backgroundColor: CARD_BG,
   },
   tabItem: {
     alignItems: 'center',
@@ -393,10 +373,10 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     fontSize: 11,
-    color: 'rgba(255,255,255,0.45)',
+    color: GREY,
   },
   tabLabelActive: {
-    color: '#00E676',
+    color: GREEN,
     fontWeight: '600',
   },
 });
