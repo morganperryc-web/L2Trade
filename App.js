@@ -46,12 +46,11 @@ const FEATURES = [
 ];
 
 // ─── Main screen component ──────────────────────────────────────────────────
-import HomeScreen from './screens/HomeScreen';
+import ProfileScreen from './screens/ProfileScreen';
 
 export default function App() {
-  // Temporary: render the new HomeScreen for preview. Navigation will be
-  // added later once all screens are implemented.
-  return <HomeScreen />;
+  // Temporary: render ProfileScreen for preview.
+  return <ProfileScreen />;
 }
 
 // ─── Styles ─────────────────────────────────────────────────────────────────
