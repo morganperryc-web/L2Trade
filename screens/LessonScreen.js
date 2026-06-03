@@ -37,9 +37,18 @@ const TABS = [
 ];
 
 // ─── LessonScreen ─────────────────────────────────────────────────────────────
-export default function LessonScreen() {
+export default function LessonScreen({ navigation }) {
   // How much of the progress bar to fill (e.g. step 1 of 5 → 20%)
   const progressPercent = `${(LESSON.currentStep / LESSON.totalSteps) * 100}%`;
+
+  // Maps a custom tab bar label to the correct React Navigation tab name.
+  // 'Lesson' is the Tab.Screen name we registered in App.js for LessonScreen.
+  const handleTabPress = (label) => {
+    if (label === 'Home')    navigation.navigate('Home');
+    if (label === 'Learn')   navigation.navigate('Lesson');
+    if (label === 'Profile') navigation.navigate('Profile');
+    // Quiz and Journal are not yet registered as main tabs — no-op for now
+  };
 
   return (
     // Same dark-green gradient used on every screen in the app
@@ -57,7 +66,7 @@ export default function LessonScreen() {
         <View style={styles.topBar}>
 
           {/* Close / exit button */}
-          <TouchableOpacity style={styles.closeBtn} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.closeBtn} activeOpacity={0.7} onPress={() => navigation.navigate('Home')}>
             <MaterialCommunityIcons name="close" size={20} color="#8FBC8F" />
           </TouchableOpacity>
 
@@ -156,7 +165,7 @@ export default function LessonScreen() {
             button so the design stays consistent
         ══════════════════════════════════════════════ */}
         <View style={styles.continueSection}>
-          <TouchableOpacity style={styles.continueBtn} activeOpacity={0.85}>
+          <TouchableOpacity style={styles.continueBtn} activeOpacity={0.85} onPress={() => navigation.navigate('Home')}>
             <Text style={styles.continueBtnText}>Continue</Text>
           </TouchableOpacity>
         </View>
@@ -168,7 +177,7 @@ export default function LessonScreen() {
         ══════════════════════════════════════════════ */}
         <View style={styles.tabBar}>
           {TABS.map((tab) => (
-            <TouchableOpacity key={tab.label} style={styles.tabItem} activeOpacity={0.7}>
+            <TouchableOpacity key={tab.label} style={styles.tabItem} activeOpacity={0.7} onPress={() => handleTabPress(tab.label)}>
               <MaterialCommunityIcons
                 name={tab.icon}
                 size={22}

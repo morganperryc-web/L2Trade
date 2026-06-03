@@ -11,6 +11,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ─── Quiz topic data ──────────────────────────────────────────────────────────
 // Each object becomes one tappable row card. Add more topics here when needed.
@@ -43,7 +44,16 @@ const TABS = [
 ];
 
 // ─── QuizScreen ───────────────────────────────────────────────────────────────
-export default function QuizScreen() {
+export default function QuizScreen({ navigation }) {
+  // Called when the user taps any topic card.
+  // We treat selecting a topic as "completing" the quiz for now.
+  // This writes the onboarding flag to storage, then resets the navigation
+  // stack so the user cannot press the back button back into onboarding.
+  const handleTopicSelect = async () => {
+    await AsyncStorage.setItem('@onboarding_complete', 'true');
+    navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
+  };
+
   return (
     // Same dark-green gradient as the onboarding and profile screens
     <LinearGradient colors={['#0A2E1A', '#0D3B22']} style={styles.gradient}>
@@ -61,7 +71,7 @@ export default function QuizScreen() {
               × close button on the left, screen title next to it
           ══════════════════════════════════════════════ */}
           <View style={styles.navBar}>
-            <TouchableOpacity style={styles.closeBtn} activeOpacity={0.7}>
+            <TouchableOpacity style={styles.closeBtn} activeOpacity={0.7} onPress={() => navigation.goBack()}>
               <MaterialCommunityIcons name="close" size={20} color="#8FBC8F" />
             </TouchableOpacity>
             <Text style={styles.navTitle}>Skill Quiz</Text>
@@ -88,6 +98,7 @@ export default function QuizScreen() {
                 key={topic.id}
                 style={styles.topicCard}
                 activeOpacity={0.75}
+                onPress={handleTopicSelect}
               >
                 {/* Medal icon in a small rounded square on the left */}
                 <View style={styles.topicIconBox}>

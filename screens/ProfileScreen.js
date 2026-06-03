@@ -138,7 +138,15 @@ function SparkLine({ values, labels }) {
 }
 
 // ─── ProfileScreen ────────────────────────────────────────────────────────────
-export default function ProfileScreen() {
+export default function ProfileScreen({ navigation }) {
+  // Maps a custom tab bar label to the correct React Navigation tab name
+  const handleTabPress = (label) => {
+    if (label === 'Home')    navigation.navigate('Home');
+    if (label === 'Learn')   navigation.navigate('Lesson');
+    if (label === 'Profile') navigation.navigate('Profile');
+    // Quiz and Journal are not yet registered as main tabs — no-op for now
+  };
+
   return (
     // Full-screen dark-green gradient — same colours as the onboarding screen
     <LinearGradient colors={['#0A2E1A', '#0D3B22']} style={styles.gradient}>
@@ -284,7 +292,7 @@ export default function ProfileScreen() {
         ══════════════════════════════════════════════ */}
         <View style={styles.tabBar}>
           {TABS.map((tab) => (
-            <TouchableOpacity key={tab.label} style={styles.tabItem} activeOpacity={0.7}>
+            <TouchableOpacity key={tab.label} style={styles.tabItem} activeOpacity={0.7} onPress={() => handleTabPress(tab.label)}>
               <MaterialCommunityIcons
                 name={tab.icon}
                 size={22}

@@ -1,178 +1,115 @@
-// ─── Imports ────────────────────────────────────────────────────────────────
-// React is the engine that makes our UI components work
-import React from 'react';
-// These are the basic React Native building blocks we need:
-//   StyleSheet – lets us write CSS-like styles
-//   Text        – displays text on screen
-//   View        – a box/container (like a <div>)
-//   TouchableOpacity – a button that fades when pressed
-//   SafeAreaView     – keeps content away from the phone's notch and home bar
-import {
-  StyleSheet,
-  Text,
-  View,
-  TouchableOpacity,
-  SafeAreaView,
-} from 'react-native';
+// ─── App.js — Navigation root ─────────────────────────────────────────────────
+// This file is the single entry point that React Native starts with.
+// Its only job is to define the navigation structure of the app.
+// It does NOT draw any UI itself — each screen file handles that.
+import React, { useEffect, useState } from 'react';
+import { View, ActivityIndicator } from 'react-native';
 
-// LinearGradient lets us paint a smooth colour transition across the background
-import { LinearGradient } from 'expo-linear-gradient';
+// NavigationContainer: wraps the whole app and keeps track of navigation state
+import { NavigationContainer } from '@react-navigation/native';
 
-// Ionicons gives us the lightning bolt, chart arrow, and trophy icons
-import { Ionicons } from '@expo/vector-icons';
+// createNativeStackNavigator: handles full-screen slide/fade transitions.
+// Used here for the one-time onboarding flow (Onboarding → Quiz → Main).
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
-// StatusBar controls the small clock/battery bar at the top of the phone
-import { StatusBar } from 'expo-status-bar';
+// createBottomTabNavigator: manages the three main tabs of the app once the
+// user has finished onboarding (Home, Lesson, Profile).
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
-// ─── Feature card data ──────────────────────────────────────────────────────
-// Keeping the card content in one array makes it easy to add or change cards
-// without touching the layout code below
-const FEATURES = [
-  {
-    icon: 'flash',           // Ionicons name for the lightning bolt
-    title: 'Daily Lessons',
-    subtitle: '5-min lessons on trading strategies',
-  },
-  {
-    icon: 'trending-up',     // Ionicons name for the upward arrow chart
-    title: 'Paper Trading',
-    subtitle: 'Practice with virtual money',
-  },
-  {
-    icon: 'trophy',          // Ionicons name for the trophy cup
-    title: 'Compete & Win',
-    subtitle: 'Climb the leaderboard weekly',
-  },
-];
+// AsyncStorage: a small on-device key-value store that survives app restarts.
+// We write '@onboarding_complete' = 'true' after the quiz so every future
+// launch opens directly on the Home screen instead of the welcome screen.
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// ─── Main screen component ──────────────────────────────────────────────────
-import LessonScreen from './screens/LessonScreen';
+// ─── Screen imports ───────────────────────────────────────────────────────────
+import OnboardingScreen from './screens/OnboardingScreen';
+import QuizScreen       from './screens/QuizScreen';
+import HomeScreen       from './screens/HomeScreen';
+import LessonScreen     from './screens/LessonScreen';
+import ProfileScreen    from './screens/ProfileScreen';
 
-export default function App() {
-  // Temporary: render LessonScreen for preview.
-  return <LessonScreen />;
+// Instantiate the two navigators (just constructors at this point, not rendered)
+const Stack = createNativeStackNavigator();
+const Tab   = createBottomTabNavigator();
+
+// ─── Main tab navigator ───────────────────────────────────────────────────────
+// This is the "home" of the app — the three screens the user lives in.
+//
+// WHY is tabBarStyle set to display:none?
+// Every screen already draws its own custom tab bar in JSX to match the app's
+// dark-green design. If we left React Navigation's default tab bar visible,
+// there would be two tab bars stacked on top of each other. Hiding the default
+// one means our custom bars handle all the visual rendering, while React
+// Navigation still handles all the actual navigation logic behind the scenes.
+// The custom tab buttons call navigation.navigate('TabName') just like a real tab.
+function MainTabs() {
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        headerShown: false,
+        tabBarStyle: { display: 'none' }, // custom tab bars in each screen replace this
+      }}
+    >
+      {/* The name prop here MUST match the string passed to navigation.navigate()
+          in the screens. Changing a name here requires updating the screens too. */}
+      <Tab.Screen name="Home"    component={HomeScreen}    />
+      <Tab.Screen name="Lesson"  component={LessonScreen}  />
+      <Tab.Screen name="Profile" component={ProfileScreen} />
+    </Tab.Navigator>
+  );
 }
 
-// ─── Styles ─────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
+// ─── Root component ───────────────────────────────────────────────────────────
+export default function App() {
+  // We start with null and decide the initial screen after reading AsyncStorage.
+  // Using null (not a default value) guarantees we never flash the wrong screen.
+  const [initialRoute, setInitialRoute] = useState(null);
 
-  // The gradient view stretches to fill the whole device screen
-  gradient: {
-    flex: 1,
-  },
+  useEffect(() => {
+    // On every app launch, check whether this device has already been through
+    // onboarding. If yes, jump straight to Main; if no, start at Onboarding.
+    async function determineStartScreen() {
+      try {
+        const done = await AsyncStorage.getItem('@onboarding_complete');
+        setInitialRoute(done === 'true' ? 'Main' : 'Onboarding');
+      } catch (_) {
+        setInitialRoute('Onboarding'); // fall back to onboarding if read fails
+      }
+    }
+    determineStartScreen();
+  }, []);
 
-  // SafeAreaView fills the gradient and spaces its two children (top / bottom)
-  // to opposite ends of the screen using 'space-between'
-  safeArea: {
-    flex: 1,
-    justifyContent: 'space-between',
-  },
+  // Show a dark loading screen while AsyncStorage is being read.
+  // This is usually less than 50 ms but prevents any visual flicker.
+  if (initialRoute === null) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#0A2E1A', alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color="#00E676" size="large" />
+      </View>
+    );
+  }
 
-  // The top block stacks its children vertically and centres them horizontally
-  topContent: {
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-  },
+  return (
+    <NavigationContainer>
+      <Stack.Navigator
+        initialRouteName={initialRoute}
+        screenOptions={{
+          headerShown: false, // every screen provides its own top bar
+          animation: 'fade',  // subtle cross-fade keeps the dark theme feeling smooth
+        }}
+      >
+        {/* ── One-time onboarding flow ──
+            These two screens are only reachable on a brand-new install.
+            After the quiz, we call navigation.reset() which wipes the stack —
+            so pressing the device back button can never return here. */}
+        <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+        <Stack.Screen name="Quiz"       component={QuizScreen}       />
 
-  // Dark rounded square that frames the app icon
-  appIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 16,
-    backgroundColor: '#1A1A2E',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 32,
-  },
-
-  // Large bold white headline
-  headline: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    lineHeight: 42,
-    marginBottom: 16,
-  },
-
-  // Smaller muted-green subtitle
-  subtitle: {
-    fontSize: 16,
-    color: '#8FBC8F',
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 36,
-    paddingHorizontal: 10,
-  },
-
-  // Wrapper that stacks the three cards with a gap between each one
-  cardsContainer: {
-    width: '100%',
-    gap: 12,
-  },
-
-  // Individual feature card: semi-transparent lighter-green rectangle
-  card: {
-    flexDirection: 'row',   // icon on left, text on right
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 16,
-    padding: 16,
-  },
-
-  // Small rounded square on the left side of each card that holds the icon
-  iconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
-  },
-
-  // Lets the text column grow to fill remaining card width
-  cardText: {
-    flex: 1,
-  },
-
-  // Bold white card title
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 3,
-  },
-
-  // Muted-green card subtitle
-  cardSubtitle: {
-    fontSize: 13,
-    color: '#8FBC8F',
-  },
-
-  // Wrapper for the button, adds breathing room at the very bottom
-  bottomSection: {
-    paddingHorizontal: 20,
-    paddingBottom: 32,
-    paddingTop: 16,
-  },
-
-  // Pill-shaped bright green button
-  button: {
-    backgroundColor: '#00E676',
-    borderRadius: 28,
-    height: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  // Bold black label inside the button
-  buttonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#000000',
-    letterSpacing: 0.3,
-  },
-
-});
+        {/* ── Main app ──
+            MainTabs is the bottom-tab navigator defined above.
+            On second+ launches, initialRouteName='Main' jumps here directly. */}
+        <Stack.Screen name="Main" component={MainTabs} />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}

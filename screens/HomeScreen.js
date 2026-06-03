@@ -13,7 +13,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 // HomeScreen replicates the dashboard screenshot. Comments explain each
 // major section so it's easy to customise later.
-export default function HomeScreen() {
+export default function HomeScreen({ navigation }) {
   return (
     // Gradient background that matches the app's existing dark-green look
     <LinearGradient colors={["#0A2E1A", "#0D3B22"]} style={styles.gradient}>
@@ -50,7 +50,7 @@ export default function HomeScreen() {
 
           {/* Big action tiles: Daily Lesson + Skill Quiz */}
           <View style={styles.actionRow}>
-            <TouchableOpacity style={styles.largeTile} activeOpacity={0.85}>
+            <TouchableOpacity style={styles.largeTile} activeOpacity={0.85} onPress={() => navigation.navigate('Lesson')}>
               <View style={styles.tileIconWrap}>
                 <MaterialCommunityIcons name="book-open-page-variant" size={22} color="#092" />
               </View>
@@ -104,19 +104,24 @@ export default function HomeScreen() {
           </View>
         </ScrollView>
 
-        {/* Bottom tab bar (visual only) */}
+        {/* Bottom tab bar */}
         <View style={styles.tabBar}>
+          {/* Home — already on this screen, no navigation needed */}
           <TouchableOpacity style={styles.tabItem} activeOpacity={0.7}>
             <MaterialCommunityIcons name="home" size={22} color="#00E676" />
             <Text style={styles.tabLabelActive}>Home</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.tabItem} activeOpacity={0.7}>
+
+          {/* Learn — switches to the Lesson tab */}
+          <TouchableOpacity style={styles.tabItem} activeOpacity={0.7} onPress={() => navigation.navigate('Lesson')}>
             <MaterialCommunityIcons name="book-open-variant" size={22} color="#97E6A1" />
             <Text style={styles.tabLabel}>Learn</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.tabItem} activeOpacity={0.7}>
-            <MaterialCommunityIcons name="target" size={22} color="#97E6A1" />
-            <Text style={styles.tabLabel}>Quiz</Text>
+
+          {/* Profile — switches to the Profile tab */}
+          <TouchableOpacity style={styles.tabItem} activeOpacity={0.7} onPress={() => navigation.navigate('Profile')}>
+            <MaterialCommunityIcons name="account" size={22} color="#97E6A1" />
+            <Text style={styles.tabLabel}>Profile</Text>
           </TouchableOpacity>
         </View>
 
