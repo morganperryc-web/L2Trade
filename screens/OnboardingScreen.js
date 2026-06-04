@@ -8,8 +8,6 @@ import {
   StatusBar,
 } from 'react-native';
 
-// AsyncStorage lets us flag that the user has finished onboarding
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 // Each object drives one feature card: icon character, bold title, grey subtitle.
@@ -87,12 +85,7 @@ export default function OnboardingScreen({ navigation }) {
         <TouchableOpacity
           style={styles.secondaryBtn}
           activeOpacity={0.7}
-          onPress={async () => {
-            // Skip onboarding entirely and go straight to the main app.
-            // Mark as done so this is also skipped on every future launch.
-            await AsyncStorage.setItem('@onboarding_complete', 'true');
-            navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
-          }}
+          onPress={() => navigation.navigate('Login')}
         >
           <Text style={styles.secondaryBtnText}>I already have an account</Text>
         </TouchableOpacity>

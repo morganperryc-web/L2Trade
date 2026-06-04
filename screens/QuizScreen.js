@@ -10,8 +10,6 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
 // ─── Design tokens — matches OnboardingScreen ─────────────────────────────────
 const GREEN      = '#00C853';
 const GREEN_TINT = 'rgba(0, 200, 83, 0.15)';
@@ -22,23 +20,30 @@ const WHITE      = '#FFFFFF';
 const GREY       = '#6B7A8D';
 const LIGHT_GREY = '#8A96A8';
 
-// ─── Quiz topic data ──────────────────────────────────────────────────────────
-// Each object becomes one tappable row card. Add more topics here when needed.
-const TOPICS = [
+// ─── Track assessment options ─────────────────────────────────────────────────
+// The user's choice here sets their track in the database.
+// Beginner and intermediate tracks unlock different lesson content.
+const TRACKS = [
   {
-    id: 'options-basics',
-    title: 'Options Basics',
-    subtitle: 'Calls, puts, contracts',
+    id: 'new',
+    icon: 'school-outline',
+    title: "I'm new to trading",
+    subtitle: 'Start from the very beginning',
+    track: 'beginner',
   },
   {
-    id: 'pricing-premium',
-    title: 'Pricing & Premium',
-    subtitle: 'How options are valued',
+    id: 'some',
+    icon: 'chart-line',
+    title: 'I know the basics',
+    subtitle: 'Stocks, charts, simple terms',
+    track: 'beginner',
   },
   {
-    id: 'strategies',
-    title: 'Strategies',
-    subtitle: 'Common trade setups',
+    id: 'experienced',
+    icon: 'trending-up',
+    title: "I've actively traded",
+    subtitle: 'Options, strategies, analysis',
+    track: 'intermediate',
   },
 ];
 
@@ -53,12 +58,10 @@ const TABS = [
 
 // ─── QuizScreen ───────────────────────────────────────────────────────────────
 export default function QuizScreen({ navigation }) {
-  // Tapping any topic card counts as completing the quiz.
-  // Marks onboarding done in storage and resets the navigation stack to Main
-  // so the user can never press back into the onboarding flow.
-  const handleTopicSelect = async () => {
-    await AsyncStorage.setItem('@onboarding_complete', 'true');
-    navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
+  // Navigate to SignUp, passing the chosen track as a route param.
+  // SignUpScreen reads route.params.track and stores it in the users table.
+  const handleTrackSelect = (track) => {
+    navigation.navigate('SignUp', { track });
   };
 
   return (
@@ -74,65 +77,57 @@ export default function QuizScreen({ navigation }) {
 
           {/* ══════════════════════════════════════════════
               SECTION 1 — Top navigation bar
-              × close button on the left, screen title next to it
           ══════════════════════════════════════════════ */}
           <View style={styles.navBar}>
             <TouchableOpacity style={styles.closeBtn} activeOpacity={0.7} onPress={() => navigation.goBack()}>
               <MaterialCommunityIcons name="close" size={20} color={LIGHT_GREY} />
             </TouchableOpacity>
-            <Text style={styles.navTitle}>Skill Quiz</Text>
+            <Text style={styles.navTitle}>Your Level</Text>
           </View>
 
           {/* ══════════════════════════════════════════════
-              SECTION 2 — Page heading and descriptor line
+              SECTION 2 — Page heading
           ══════════════════════════════════════════════ */}
           <View style={styles.headingBlock}>
-            <Text style={styles.heading}>Choose a Topic</Text>
+            <Text style={styles.heading}>Where do you{'\n'}start?</Text>
             <Text style={styles.descriptor}>
-              5 questions · 20 seconds each · Test your knowledge
+              Pick the option that best describes you — this sets your learning track.
             </Text>
           </View>
 
           {/* ══════════════════════════════════════════════
-              SECTION 3 — Topic cards
-              One tappable card per quiz topic.
-              Layout: medal icon | title + subtitle | chevron
+              SECTION 3 — Track selection cards
+              Tapping a card passes the track value to SignUpScreen.
           ══════════════════════════════════════════════ */}
           <View style={styles.cardList}>
-            {TOPICS.map((topic) => (
+            {TRACKS.map((option) => (
               <TouchableOpacity
-                key={topic.id}
+                key={option.id}
                 style={styles.topicCard}
                 activeOpacity={0.75}
-                onPress={handleTopicSelect}
+                onPress={() => handleTrackSelect(option.track)}
               >
-                {/* Medal icon in a small rounded square on the left */}
                 <View style={styles.topicIconBox}>
-                  <MaterialCommunityIcons name="medal-outline" size={22} color={GREEN} />
+                  <MaterialCommunityIcons name={option.icon} size={22} color={GREEN} />
                 </View>
 
-                {/* Topic name and short description in the centre */}
                 <View style={styles.topicText}>
-                  <Text style={styles.topicTitle}>{topic.title}</Text>
-                  <Text style={styles.topicSubtitle}>{topic.subtitle}</Text>
+                  <Text style={styles.topicTitle}>{option.title}</Text>
+                  <Text style={styles.topicSubtitle}>{option.subtitle}</Text>
                 </View>
 
-                {/* Right-pointing chevron arrow */}
                 <MaterialCommunityIcons name="chevron-right" size={22} color={GREEN} />
               </TouchableOpacity>
             ))}
           </View>
 
           {/* ══════════════════════════════════════════════
-              SECTION 4 — "How it works" info box
-              Explains the quiz rules in a subtle inset card.
-              "How it works:" is bold green; the rest is muted.
+              SECTION 4 — Info box
           ══════════════════════════════════════════════ */}
           <View style={styles.infoBox}>
             <Text style={styles.infoText}>
-              <Text style={styles.infoBold}>How it works: </Text>
-              Answer 5 multiple-choice questions. Each correct answer earns 20 XP.
-              You have 20 seconds per question — the timer resets between questions.
+              <Text style={styles.infoBold}>Don't worry: </Text>
+              You can change your track at any time from your profile settings.
             </Text>
           </View>
 
