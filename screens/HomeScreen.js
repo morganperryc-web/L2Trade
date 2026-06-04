@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,10 +7,15 @@ import {
   StatusBar,
   TouchableOpacity,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+// useFocusEffect re-runs its callback every time this screen comes into view —
+// including when the user returns from LessonScreen after finishing a lesson.
+import { useFocusEffect } from '@react-navigation/native';
+import { supabase } from '../services/supabase';
 
-// ─── Design tokens — matches OnboardingScreen ─────────────────────────────────
+// ─── Design tokens ────────────────────────────────────────────────────────────
 const GREEN      = '#00C853';
 const GREEN_TINT = 'rgba(0, 200, 83, 0.15)';
 const BG         = '#0A0E1A';
@@ -21,51 +26,167 @@ const GREY       = '#6B7A8D';
 const LIGHT_GREY = '#8A96A8';
 
 export default function HomeScreen({ navigation }) {
+  // ─── State ─────────────────────────────────────────────────────────────────
+  const [profile,    setProfile]    = useState(null);  // xp_total, streak_count, track
+  const [nextLesson, setNextLesson] = useState(null);  // next uncompleted lesson object
+  const [todayDone,  setTodayDone]  = useState(false); // true if user already did a lesson today
+  const [loading,    setLoading]    = useState(true);
+
+  // ─── Data fetching ──────────────────────────────────────────────────────────
+  // Wrapped in useCallback so useFocusEffect only creates one stable reference.
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      // 1. Who is currently signed in?
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // 2. Fetch the user's profile: track determines which lessons to show,
+      //    xp_total and streak_count are displayed in the header badges.
+      const { data: prof, error: profErr } = await supabase
+        .from('users')
+        .select('track, xp_total, streak_count')
+        .eq('id', user.id)
+        .single();
+
+      if (profErr) throw profErr;
+      setProfile(prof);
+
+      // 3. Get every lesson this user has already completed.
+      const { data: completed } = await supabase
+        .from('user_progress')
+        .select('lesson_id, completed_at')
+        .eq('user_id', user.id)
+        .eq('completed', true);
+
+      const completedIds = (completed || []).map(r => r.lesson_id);
+
+      // 4. Check if the user already finished a lesson today.
+      //    We compare completed_at timestamps against midnight local time.
+      const todayMidnight = new Date();
+      todayMidnight.setHours(0, 0, 0, 0);
+      const doneToday = (completed || []).some(
+        r => r.completed_at && new Date(r.completed_at) >= todayMidnight
+      );
+      setTodayDone(doneToday);
+
+      // 5. Find the very next uncompleted lesson for this user's track,
+      //    ordered by order_index so lessons are always shown in sequence.
+      let query = supabase
+        .from('lessons')
+        .select('id, title, order_index, xp_reward, concept_cards, quiz_questions')
+        .eq('track', prof.track)
+        .order('order_index', { ascending: true })
+        .limit(1);
+
+      // Exclude any lesson the user has already completed.
+      // Supabase's .not('id','in',...) requires a comma-separated string in parens.
+      if (completedIds.length > 0) {
+        query = query.not('id', 'in', `(${completedIds.join(',')})`);
+      }
+
+      const { data: lessons, error: lessonErr } = await query;
+      if (lessonErr) throw lessonErr;
+      setNextLesson(lessons?.[0] ?? null); // null means all lessons completed
+    } catch (err) {
+      console.error('HomeScreen fetch error:', err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []); // empty deps: fetchData itself never changes, only the Supabase data does
+
+  // Re-fetch every time this screen gains focus.
+  // This fires on first mount AND whenever the user navigates back here
+  // (e.g. after completing a lesson), so the "next lesson" always updates.
+  useFocusEffect(fetchData);
+
+  // ─── Handlers ───────────────────────────────────────────────────────────────
+  const handleStartLesson = () => {
+    if (!nextLesson || todayDone) return;
+    // Pass the full lesson object to LessonScreen so it can display
+    // concept_cards and quiz_questions without making another DB call.
+    navigation.navigate('Lesson', { lesson: nextLesson });
+  };
+
+  // ─── Derived display values ─────────────────────────────────────────────────
+  const xpDisplay     = profile?.xp_total     ?? 0;
+  const streakDisplay = profile?.streak_count  ?? 0;
+  const lessonTitle   = loading
+    ? 'Loading...'
+    : nextLesson
+      ? nextLesson.title
+      : 'All lessons complete!';
+
+  // ─── Render ──────────────────────────────────────────────────────────────────
   return (
     <View style={styles.screen}>
       <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle="light-content" backgroundColor={BG} />
 
-        {/* Header: app label on the left, small badges on the right */}
+        {/* ── Header: app label + live XP and streak badges ── */}
         <View style={styles.header}>
           <Text style={styles.appTitle}>OPTIQ</Text>
           <View style={styles.headerRight}>
+            {/* Streak badge — real value from users table */}
             <View style={styles.badge}>
               <MaterialCommunityIcons name="fire" size={14} color="#FFD166" />
-              <Text style={styles.badgeText}>7</Text>
+              <Text style={styles.badgeText}>{streakDisplay}</Text>
             </View>
+            {/* XP badge — real value from users table */}
             <View style={styles.xpBadge}>
               <MaterialCommunityIcons name="bolt" size={14} color={GREEN} />
-              <Text style={styles.xpText}>340 XP</Text>
+              <Text style={styles.xpText}>{xpDisplay} XP</Text>
             </View>
           </View>
         </View>
 
         <ScrollView contentContainerStyle={styles.content}>
-          {/* Daily goal card with progress bar */}
+
+          {/* ── Daily goal card (static UI, lesson count wired in next sprint) ── */}
           <View style={styles.dailyGoalCard}>
             <View style={styles.dailyGoalHeader}>
               <Text style={styles.dailyGoalTitle}>DAILY GOAL</Text>
-              <Text style={styles.dailyGoalCount}>1/3 lessons</Text>
+              <Text style={styles.dailyGoalCount}>{todayDone ? '1/1 done' : '0/1 lessons'}</Text>
             </View>
             <View style={styles.progressBarTrack}>
-              <View style={[styles.progressBarFill, { width: '33%' }]} />
+              <View style={[styles.progressBarFill, { width: todayDone ? '100%' : '0%' }]} />
             </View>
-            <Text style={styles.dailyGoalSub}>2 more lessons to reach your daily goal</Text>
+            <Text style={styles.dailyGoalSub}>
+              {todayDone ? 'Great work! See you tomorrow.' : 'Complete your lesson to hit your daily goal'}
+            </Text>
           </View>
 
-          {/* Big action tiles: Daily Lesson + Skill Quiz */}
+          {/* ── Action tiles: Today's Lesson + Skill Quiz ── */}
           <View style={styles.actionRow}>
-            <TouchableOpacity style={styles.largeTile} activeOpacity={0.85} onPress={() => navigation.navigate('Lesson')}>
+
+            {/* Today's Lesson tile — disabled with different message if already done today */}
+            <TouchableOpacity
+              style={[styles.largeTile, todayDone && styles.doneTile]}
+              activeOpacity={todayDone ? 1 : 0.85}
+              onPress={handleStartLesson}
+              disabled={todayDone || loading || !nextLesson}
+            >
               <View style={styles.tileIconWrap}>
-                <MaterialCommunityIcons name="book-open-page-variant" size={22} color={BG} />
+                {loading ? (
+                  <ActivityIndicator size="small" color={WHITE} />
+                ) : todayDone ? (
+                  <MaterialCommunityIcons name="check-circle" size={22} color={WHITE} />
+                ) : (
+                  <MaterialCommunityIcons name="book-open-page-variant" size={22} color={BG} />
+                )}
               </View>
-              <View>
-                <Text style={styles.tileTitle}>Daily Lesson</Text>
-                <Text style={styles.tileSubtitle}>~5 min</Text>
+              <View style={styles.tileLabelBlock}>
+                {/* Shows the real lesson title from Supabase */}
+                <Text style={styles.tileTitle} numberOfLines={2}>
+                  {todayDone ? 'Come back tomorrow' : lessonTitle}
+                </Text>
+                <Text style={styles.tileSubtitle}>
+                  {todayDone ? 'Lesson complete ✓' : `${nextLesson?.xp_reward ?? 0} XP · ~5 min`}
+                </Text>
               </View>
             </TouchableOpacity>
 
+            {/* Skill Quiz tile (not yet wired to quiz flow) */}
             <TouchableOpacity style={[styles.largeTile, styles.darkTile]} activeOpacity={0.85}>
               <View style={styles.tileIconWrapAlt}>
                 <MaterialCommunityIcons name="bullseye" size={22} color={GREEN} />
@@ -75,16 +196,15 @@ export default function HomeScreen({ navigation }) {
                 <Text style={styles.tileSubtitle}>Test your knowledge</Text>
               </View>
             </TouchableOpacity>
+
           </View>
 
-          {/* Section title */}
+          {/* ── Your Path — static for now, full dynamic wiring in next sprint ── */}
           <Text style={styles.sectionTitle}>Your Path</Text>
-
-          {/* Path cards with progress bars */}
           <View style={styles.pathList}>
             {[
-              { title: 'Options Basics', subtitle: 'Calls, puts, and how contracts work', progress: '62%', count: '5/8' },
-              { title: 'Strike Price & Expiration', subtitle: 'In-the-money, at-the-money, out-of-the-money', progress: '33%', count: '2/6' },
+              { title: 'Options Basics', subtitle: 'Calls, puts, and how contracts work', progress: '0%', count: '' },
+              { title: 'Strike Price & Expiration', subtitle: 'In-the-money, at-the-money, out-of-the-money', progress: '0%', count: '' },
               { title: 'Option Premium & Greeks', subtitle: 'Delta, theta, vega, and what they mean', progress: '0%', count: '' },
               { title: 'Strategies: Covered Calls', subtitle: 'Generate income from stocks you own', progress: '0%', count: '' },
             ].map((m, i) => (
@@ -98,7 +218,6 @@ export default function HomeScreen({ navigation }) {
                     />
                   </View>
                 </View>
-
                 <View style={styles.pathRight}>
                   <View style={styles.pathTopRow}>
                     <Text style={styles.pathTitle}>{m.title}</Text>
@@ -112,23 +231,19 @@ export default function HomeScreen({ navigation }) {
               </View>
             ))}
           </View>
+
         </ScrollView>
 
-        {/* Bottom tab bar */}
+        {/* ── Bottom tab bar ── */}
         <View style={styles.tabBar}>
-          {/* Home — already on this screen, no navigation needed */}
           <TouchableOpacity style={styles.tabItem} activeOpacity={0.7}>
             <MaterialCommunityIcons name="home" size={22} color={GREEN} />
             <Text style={styles.tabLabelActive}>Home</Text>
           </TouchableOpacity>
-
-          {/* Learn — switches to the Lesson tab */}
           <TouchableOpacity style={styles.tabItem} activeOpacity={0.7} onPress={() => navigation.navigate('Lesson')}>
             <MaterialCommunityIcons name="book-open-variant" size={22} color={GREY} />
             <Text style={styles.tabLabel}>Learn</Text>
           </TouchableOpacity>
-
-          {/* Profile — switches to the Profile tab */}
           <TouchableOpacity style={styles.tabItem} activeOpacity={0.7} onPress={() => navigation.navigate('Profile')}>
             <MaterialCommunityIcons name="account" size={22} color={GREY} />
             <Text style={styles.tabLabel}>Profile</Text>
@@ -142,10 +257,9 @@ export default function HomeScreen({ navigation }) {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  screen:  { flex: 1, backgroundColor: BG },
+  screen:   { flex: 1, backgroundColor: BG },
   safeArea: { flex: 1 },
 
-  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -153,12 +267,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 12,
   },
-  appTitle: {
-    color: WHITE,
-    fontSize: 20,
-    fontWeight: '800',
-    letterSpacing: 0.6,
-  },
+  appTitle: { color: WHITE, fontSize: 20, fontWeight: '800', letterSpacing: 0.6 },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   badge: {
     flexDirection: 'row',
@@ -184,10 +293,8 @@ const styles = StyleSheet.create({
   },
   xpText: { color: GREEN, marginLeft: 6, fontWeight: '700' },
 
-  // Scrollable content area
   content: { paddingHorizontal: 24, paddingTop: 18, paddingBottom: 10 },
 
-  // Daily goal card
   dailyGoalCard: {
     backgroundColor: CARD_BG,
     borderRadius: 16,
@@ -200,20 +307,10 @@ const styles = StyleSheet.create({
   dailyGoalHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   dailyGoalTitle: { color: LIGHT_GREY, fontWeight: '700', fontSize: 13, letterSpacing: 0.8 },
   dailyGoalCount: { color: GREEN, fontWeight: '700', fontSize: 13 },
-  progressBarTrack: {
-    height: 8,
-    backgroundColor: BORDER,
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: 8,
-    backgroundColor: GREEN,
-    borderRadius: 4,
-  },
+  progressBarTrack: { height: 8, backgroundColor: BORDER, borderRadius: 4, overflow: 'hidden' },
+  progressBarFill: { height: 8, backgroundColor: GREEN, borderRadius: 4 },
   dailyGoalSub: { color: GREY, marginTop: 8, fontSize: 12 },
 
-  // Large action tiles
   actionRow: { flexDirection: 'row', gap: 12, marginBottom: 18 },
   largeTile: {
     flex: 1,
@@ -223,6 +320,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+  },
+  // Muted style shown when today's lesson is already complete
+  doneTile: {
+    backgroundColor: CARD_BG,
+    borderWidth: 1,
+    borderColor: BORDER,
   },
   darkTile: {
     backgroundColor: CARD_BG,
@@ -236,6 +339,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   tileIconWrapAlt: {
     width: 44,
@@ -245,14 +349,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tileTitle: { color: WHITE, fontSize: 15, fontWeight: '700' },
+  tileLabelBlock: { flex: 1 },
+  tileTitle: { color: WHITE, fontSize: 14, fontWeight: '700', lineHeight: 19 },
   tileTitleAlt: { color: WHITE },
-  tileSubtitle: { color: LIGHT_GREY, fontSize: 12, marginTop: 2 },
+  tileSubtitle: { color: LIGHT_GREY, fontSize: 11, marginTop: 3 },
 
-  // Section title
   sectionTitle: { color: LIGHT_GREY, fontWeight: '700', fontSize: 13, letterSpacing: 0.8, marginBottom: 12 },
 
-  // Path list and cards
   pathList: { gap: 12, marginBottom: 24 },
   pathCard: {
     flexDirection: 'row',
@@ -281,7 +384,6 @@ const styles = StyleSheet.create({
   pathProgressTrack: { height: 6, backgroundColor: BORDER, borderRadius: 3, overflow: 'hidden' },
   pathProgressFill: { height: 6, backgroundColor: GREEN, borderRadius: 3 },
 
-  // Bottom tab bar
   tabBar: {
     height: 64,
     borderTopWidth: 1,
