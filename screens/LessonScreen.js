@@ -74,10 +74,8 @@ export default function LessonScreen({ navigation, route }) {
     ? `${Math.round(((currentStep + 1) / totalSteps) * 100)}%`
     : '100%';
 
-  // XP awarded is proportional to quiz score (full xp_reward for a perfect score)
-  const xpEarned = quizQuestions.length > 0
-    ? Math.round((correctCount / quizQuestions.length) * (lesson?.xp_reward ?? 50))
-    : (lesson?.xp_reward ?? 50); // if no quiz, award full XP just for reading
+  // XP reward for this lesson; this is what we save when the lesson completes.
+  const xpEarned = lesson?.xp_reward ?? 50;
 
   // ─── Answer selection ──────────────────────────────────────────────────────
   const handleAnswerSelect = (option) => {
@@ -109,40 +107,46 @@ export default function LessonScreen({ navigation, route }) {
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user || !lesson) { navigation.navigate('Home'); return; }
+      if (!user || !lesson) {
+        navigation.navigate('Home');
+        return;
+      }
 
-      // 1. Insert a completed row into user_progress.
-      //    score is stored as a 0-100 percentage of correct quiz answers.
-      const score = quizQuestions.length > 0
-        ? Math.round((correctCount / quizQuestions.length) * 100)
-        : 100;
-
-      await supabase.from('user_progress').insert({
+      const { error: progressError } = await supabase.from('user_progress').insert({
         user_id:      user.id,
         lesson_id:    lesson.id,
         completed:    true,
-        score,
         xp_earned:    xpEarned,
         completed_at: new Date().toISOString(),
       });
 
-      // 2. Read the user's current xp_total, then add the earned XP.
-      //    We read first to avoid overwriting concurrent updates on other devices.
-      const { data: prof } = await supabase
+      if (progressError) {
+        throw progressError;
+      }
+
+      const { data: profile, error: profileError } = await supabase
         .from('users')
         .select('xp_total')
         .eq('id', user.id)
         .single();
 
-      await supabase
+      if (profileError) {
+        throw profileError;
+      }
+
+      const updatedXpTotal = (profile?.xp_total ?? 0) + xpEarned;
+      const { error: updateError } = await supabase
         .from('users')
-        .update({ xp_total: (prof?.xp_total ?? 0) + xpEarned })
+        .update({ xp_total: updatedXpTotal })
         .eq('id', user.id);
+
+      if (updateError) {
+        throw updateError;
+      }
 
       navigation.navigate('Home');
     } catch (err) {
       console.error('LessonScreen complete error:', err.message);
-      navigation.navigate('Home'); // navigate home even on error so user isn't stuck
     } finally {
       setSaving(false);
     }
