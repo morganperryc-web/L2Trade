@@ -126,7 +126,7 @@ export default function LessonScreen({ navigation, route }) {
 
       const { data: profile, error: profileError } = await supabase
         .from('users')
-        .select('xp_total')
+        .select('xp_total, streak_count, longest_streak, last_lesson_date')
         .eq('id', user.id)
         .single();
 
@@ -135,9 +135,43 @@ export default function LessonScreen({ navigation, route }) {
       }
 
       const updatedXpTotal = (profile?.xp_total ?? 0) + xpEarned;
+      const today = new Date();
+      const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const lastLessonDate = profile?.last_lesson_date ? new Date(profile.last_lesson_date) : null;
+
+      const isSameLocalDate = (dateA, dateB) =>
+        dateA && dateB &&
+        dateA.getFullYear() === dateB.getFullYear() &&
+        dateA.getMonth() === dateB.getMonth() &&
+        dateA.getDate() === dateB.getDate();
+
+      const isYesterdayLocal = (dateA, dateB) => {
+        if (!dateA || !dateB) return false;
+        const yesterday = new Date(dateB);
+        yesterday.setDate(yesterday.getDate() - 1);
+        return isSameLocalDate(dateA, yesterday);
+      };
+
+      let newStreakCount = 1;
+      if (lastLessonDate && isSameLocalDate(lastLessonDate, todayDate)) {
+        newStreakCount = profile?.streak_count ?? 1;
+      } else if (lastLessonDate && isYesterdayLocal(lastLessonDate, todayDate)) {
+        newStreakCount = (profile?.streak_count ?? 0) + 1;
+      } else {
+        newStreakCount = 1;
+      }
+
+      const updatedLongestStreak = Math.max(profile?.longest_streak ?? 0, newStreakCount);
+      const todayDateString = todayDate.toISOString().split('T')[0];
+
       const { error: updateError } = await supabase
         .from('users')
-        .update({ xp_total: updatedXpTotal })
+        .update({
+          xp_total:        updatedXpTotal,
+          streak_count:    newStreakCount,
+          longest_streak:  updatedLongestStreak,
+          last_lesson_date: todayDateString,
+        })
         .eq('id', user.id);
 
       if (updateError) {

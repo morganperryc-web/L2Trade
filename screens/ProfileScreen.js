@@ -1,5 +1,5 @@
 // ─── Imports ─────────────────────────────────────────────────────────────────
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -7,7 +7,9 @@ import {
   TouchableOpacity,
   ScrollView,
   SafeAreaView,
+  ActivityIndicator,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 
@@ -143,6 +145,33 @@ function SparkLine({ values, labels }) {
 
 // ─── ProfileScreen ────────────────────────────────────────────────────────────
 export default function ProfileScreen({ navigation }) {
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchProfile = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('users')
+        .select('xp_total, streak_count')
+        .eq('id', user.id)
+        .single();
+      if (error) throw error;
+      setProfile(data);
+    } catch (err) {
+      console.error('ProfileScreen fetch error:', err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(fetchProfile);
+
+  const xpTotal = profile?.xp_total ?? 0;
+
   const handleTabPress = (label) => {
     if (label === 'Home')    navigation.navigate('Home');
     if (label === 'Learn')   navigation.navigate('Lesson');
@@ -160,8 +189,13 @@ export default function ProfileScreen({ navigation }) {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-
-          {/* ══════════════════════════════════════════════
+          {loading && !profile ? (
+            <View style={styles.loadingCenter}>
+              <ActivityIndicator size="large" color={GREEN} />
+            </View>
+          ) : (
+            <>
+              {/* ══════════════════════════════════════════════
               SECTION 1 — Profile header
               Avatar, title, quote, and three stats cards
           ══════════════════════════════════════════════ */}
@@ -187,13 +221,18 @@ export default function ProfileScreen({ navigation }) {
 
             {/* Three stat cards in a horizontal row */}
             <View style={styles.statsRow}>
-              {STATS.map((s) => (
-                <View key={s.label} style={styles.statCard}>
-                  <MaterialCommunityIcons name={s.icon} size={18} color={s.iconColor} />
-                  <Text style={styles.statValue}>{s.value}</Text>
-                  <Text style={styles.statLabel}>{s.label}</Text>
-                </View>
-              ))}
+              {STATS.map((s) => {
+                const value = s.label === 'Streak'
+                  ? String(profile?.streak_count ?? 0)
+                  : s.value;
+                return (
+                  <View key={s.label} style={styles.statCard}>
+                    <MaterialCommunityIcons name={s.icon} size={18} color={s.iconColor} />
+                    <Text style={styles.statValue}>{value}</Text>
+                    <Text style={styles.statLabel}>{s.label}</Text>
+                  </View>
+                );
+              })}
             </View>
 
           </View>
@@ -212,7 +251,7 @@ export default function ProfileScreen({ navigation }) {
                 </View>
                 <View>
                   <Text style={styles.xpLabel}>Total XP</Text>
-                  <Text style={styles.xpAmount}>340 XP</Text>
+                  <Text style={styles.xpAmount}>{xpTotal} XP</Text>
                 </View>
               </View>
               <View style={styles.xpRight}>
@@ -225,7 +264,7 @@ export default function ProfileScreen({ navigation }) {
             <View style={styles.progressTrack}>
               <View style={[styles.progressFill, { width: '85%', backgroundColor: GREEN }]} />
             </View>
-            <Text style={styles.xpNextLabel}>60 XP to Level 5</Text>
+            <Text style={styles.xpNextLabel}>{profile ? `${Math.max(0, 400 - xpTotal)} XP to Level 5` : 'Loading...'}</Text>
           </View>
 
           {/* ── This Week activity chart card ── */}
@@ -495,6 +534,12 @@ const styles = StyleSheet.create({
   topicPct: {
     fontWeight: '700',
     fontSize: 14,
+  },
+
+  loadingCenter: {
+    minHeight: 240,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 
   // ── Badges card ──
