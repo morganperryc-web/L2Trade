@@ -33,26 +33,22 @@ export default function HomeScreen({ navigation }) {
   const [loading,    setLoading]    = useState(true);
 
   // ─── Data fetching ──────────────────────────────────────────────────────────
-  // Wrapped in useCallback so useFocusEffect only creates one stable reference.
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // 1. Who is currently signed in?
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // 2. Fetch the user's profile: track determines which lessons to show,
-      //    xp_total and streak_count are displayed in the header badges.
+      // Fetch user profile for XP and streak display
       const { data: prof, error: profErr } = await supabase
         .from('users')
         .select('track, xp_total, streak_count')
         .eq('id', user.id)
         .single();
-
       if (profErr) throw profErr;
       setProfile(prof);
 
-      // 3. Get every lesson this user has already completed.
+      // Get IDs of every lesson this user has already completed
       const { data: completed } = await supabase
         .from('user_progress')
         .select('lesson_id, completed_at')
@@ -61,8 +57,7 @@ export default function HomeScreen({ navigation }) {
 
       const completedIds = (completed || []).map(r => r.lesson_id);
 
-      // 4. Check if the user already finished a lesson today.
-      //    We compare completed_at timestamps against midnight local time.
+      // Check if the user already finished a lesson today
       const todayMidnight = new Date();
       todayMidnight.setHours(0, 0, 0, 0);
       const doneToday = (completed || []).some(
@@ -70,30 +65,31 @@ export default function HomeScreen({ navigation }) {
       );
       setTodayDone(doneToday);
 
-      // 5. Find the very next uncompleted lesson for this user's track,
-      //    ordered by order_index so lessons are always shown in sequence.
+      // Find the next uncompleted lesson ordered by order_index.
+      // NOTE: lessons.track stores module names ("M2 — Efficient Diversification")
+      // which is different from users.track ("beginner"/"intermediate").
+      // We intentionally do NOT filter by track here — all 130 lessons are shown
+      // in order regardless of module. A difficulty/level filter can be added later
+      // once the lessons table has a dedicated difficulty column populated.
       let query = supabase
         .from('lessons')
         .select('id, title, order_index, xp_reward, concept_cards, quiz_questions')
-        .eq('track', prof.track)
         .order('order_index', { ascending: true })
         .limit(1);
 
-      // Exclude any lesson the user has already completed.
-      // Supabase's .not('id','in',...) requires a comma-separated string in parens.
       if (completedIds.length > 0) {
         query = query.not('id', 'in', `(${completedIds.join(',')})`);
       }
 
       const { data: lessons, error: lessonErr } = await query;
       if (lessonErr) throw lessonErr;
-      setNextLesson(lessons?.[0] ?? null); // null means all lessons completed
+      setNextLesson(lessons?.[0] ?? null);
     } catch (err) {
       console.error('HomeScreen fetch error:', err.message);
     } finally {
       setLoading(false);
     }
-  }, []); // empty deps: fetchData itself never changes, only the Supabase data does
+  }, []);
 
   // Re-fetch every time this screen gains focus.
   // This fires on first mount AND whenever the user navigates back here
