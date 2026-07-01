@@ -1,5 +1,5 @@
 // ─── Imports ─────────────────────────────────────────────────────────────────
-import React from 'react';
+import React, { useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -20,30 +20,39 @@ const WHITE      = '#FFFFFF';
 const GREY       = '#6B7A8D';
 const LIGHT_GREY = '#8A96A8';
 
-// ─── Track assessment options ─────────────────────────────────────────────────
-// The user's choice here sets their track in the database.
-// Beginner and intermediate tracks unlock different lesson content.
-const TRACKS = [
+// ─── Quiz questions ──────────────────────────────────────────────────────────
+// The user's answers are saved to the users table for profile analytics.
+// Q1 answer determines the track: beginner or intermediate.
+const QUESTIONS = [
   {
-    id: 'new',
-    icon: 'school-outline',
-    title: "I'm new to trading",
-    subtitle: 'Start from the very beginning',
-    track: 'beginner',
+    id: 'experience',
+    question: 'How long have you been investing?',
+    options: [
+      { label: 'Never started', trackValue: 'beginner' },
+      { label: 'Under 1 year', trackValue: 'beginner' },
+      { label: '1–3 years', trackValue: 'intermediate' },
+      { label: '3+ years', trackValue: 'intermediate' },
+    ],
   },
   {
-    id: 'some',
-    icon: 'chart-line',
-    title: 'I know the basics',
-    subtitle: 'Stocks, charts, simple terms',
-    track: 'beginner',
+    id: 'goal',
+    question: "What's your main goal?",
+    options: [
+      { label: 'Learn trading basics' },
+      { label: 'Build a strategy' },
+      { label: 'Earn passive income' },
+      { label: 'Test my skills' },
+    ],
   },
   {
-    id: 'experienced',
-    icon: 'trending-up',
-    title: "I've actively traded",
-    subtitle: 'Options, strategies, analysis',
-    track: 'intermediate',
+    id: 'commitment',
+    question: 'How much time can you commit weekly?',
+    options: [
+      { label: 'Under 2 hours' },
+      { label: '2–5 hours' },
+      { label: '5–10 hours' },
+      { label: '10+ hours' },
+    ],
   },
 ];
 
@@ -58,10 +67,30 @@ const TABS = [
 
 // ─── QuizScreen ───────────────────────────────────────────────────────────────
 export default function QuizScreen({ navigation }) {
-  // Navigate to SignUp, passing the chosen track as a route param.
-  // SignUpScreen reads route.params.track and stores it in the users table.
-  const handleTrackSelect = (track) => {
-    navigation.navigate('SignUp', { track });
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [answers, setAnswers] = useState({});
+
+  const question = QUESTIONS[currentQuestion];
+  const answered = answers[question.id];
+
+  // Handle option selection and advance to next question or signup
+  const handleSelectOption = (option) => {
+    const newAnswers = { ...answers, [question.id]: option.label };
+    setAnswers(newAnswers);
+
+    // If this is the last question, navigate to SignUp with answers and determined track
+    if (currentQuestion === QUESTIONS.length - 1) {
+      // Determine track from Q1 answer
+      const firstQuestion = QUESTIONS[0];
+      const q1Answer = newAnswers[firstQuestion.id];
+      const selectedOption = firstQuestion.options.find(o => o.label === q1Answer);
+      const track = selectedOption?.trackValue || 'beginner';
+
+      navigation.navigate('SignUp', { track, quiz_answers: newAnswers });
+    } else {
+      // Advance to next question
+      setCurrentQuestion(prev => prev + 1);
+    }
   };
 
   return (
@@ -82,53 +111,48 @@ export default function QuizScreen({ navigation }) {
             <TouchableOpacity style={styles.closeBtn} activeOpacity={0.7} onPress={() => navigation.goBack()}>
               <MaterialCommunityIcons name="close" size={20} color={LIGHT_GREY} />
             </TouchableOpacity>
-            <Text style={styles.navTitle}>Your Level</Text>
+            <Text style={styles.navTitle}>Getting to know you</Text>
+            <Text style={styles.stepCounter}>{currentQuestion + 1}/{QUESTIONS.length}</Text>
           </View>
 
           {/* ══════════════════════════════════════════════
-              SECTION 2 — Page heading
+              SECTION 2 — Progress bar
+          ══════════════════════════════════════════════ */}
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${((currentQuestion + 1) / QUESTIONS.length) * 100}%` }]} />
+          </View>
+
+          {/* ══════════════════════════════════════════════
+              SECTION 3 — Current question
           ══════════════════════════════════════════════ */}
           <View style={styles.headingBlock}>
-            <Text style={styles.heading}>Where do you{'\n'}start?</Text>
-            <Text style={styles.descriptor}>
-              Pick the option that best describes you — this sets your learning track.
-            </Text>
+            <Text style={styles.heading}>{question.question}</Text>
           </View>
 
           {/* ══════════════════════════════════════════════
-              SECTION 3 — Track selection cards
-              Tapping a card passes the track value to SignUpScreen.
+              SECTION 4 — Answer options
           ══════════════════════════════════════════════ */}
-          <View style={styles.cardList}>
-            {TRACKS.map((option) => (
-              <TouchableOpacity
-                key={option.id}
-                style={styles.topicCard}
-                activeOpacity={0.75}
-                onPress={() => handleTrackSelect(option.track)}
-              >
-                <View style={styles.topicIconBox}>
-                  <MaterialCommunityIcons name={option.icon} size={22} color={GREEN} />
-                </View>
-
-                <View style={styles.topicText}>
-                  <Text style={styles.topicTitle}>{option.title}</Text>
-                  <Text style={styles.topicSubtitle}>{option.subtitle}</Text>
-                </View>
-
-                <MaterialCommunityIcons name="chevron-right" size={22} color={GREEN} />
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* ══════════════════════════════════════════════
-              SECTION 4 — Info box
-          ══════════════════════════════════════════════ */}
-          <View style={styles.infoBox}>
-            <Text style={styles.infoText}>
-              <Text style={styles.infoBold}>Don't worry: </Text>
-              You can change your track at any time from your profile settings.
-            </Text>
+          <View style={styles.optionsList}>
+            {question.options.map((option, i) => {
+              const isSelected = answered === option.label;
+              return (
+                <TouchableOpacity
+                  key={i}
+                  style={[styles.optionCard, isSelected && styles.optionCardSelected]}
+                  activeOpacity={0.75}
+                  onPress={() => handleSelectOption(option)}
+                >
+                  {isSelected && (
+                    <View style={styles.checkmark}>
+                      <MaterialCommunityIcons name="check" size={18} color={GREEN} />
+                    </View>
+                  )}
+                  <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
         </ScrollView>
@@ -177,14 +201,33 @@ const styles = StyleSheet.create({
   navBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 28,
+    justifyContent: 'space-between',
+    marginBottom: 12,
     gap: 10,
   },
   closeBtn: { padding: 4 },
   navTitle: {
+    flex: 1,
     color: WHITE,
     fontSize: 16,
     fontWeight: '600',
+  },
+  stepCounter: {
+    color: GREY,
+    fontSize: 14,
+  },
+
+  // ── Progress bar ──
+  progressTrack: {
+    height: 4,
+    backgroundColor: CARD_BG,
+    borderRadius: 2,
+    marginBottom: 24,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: GREEN,
   },
 
   // ── Page heading ──
@@ -194,22 +237,14 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '800',
     letterSpacing: -0.5,
-    marginBottom: 6,
-  },
-  descriptor: {
-    color: LIGHT_GREY,
-    fontSize: 14,
-    lineHeight: 20,
   },
 
-  // ── Topic card list ──
-  cardList: {
+  // ── Options list ──
+  optionsList: {
     gap: 12,
     marginBottom: 28,
   },
-
-  // Dark background, border, rounded corners — matches OnboardingScreen card
-  topicCard: {
+  optionCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: CARD_BG,
@@ -219,48 +254,28 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 16,
   },
-
-  // Green-tinted icon bubble — matches OnboardingScreen iconBubble
-  topicIconBox: {
-    width: 46,
-    height: 46,
-    borderRadius: 13,
+  optionCardSelected: {
+    borderColor: GREEN,
+    backgroundColor: GREEN_TINT,
+  },
+  checkmark: {
+    marginRight: 12,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: GREEN_TINT,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 14,
   },
-
-  topicText: { flex: 1 },
-  topicTitle: {
-    color: WHITE,
-    fontSize: 15,
-    fontWeight: '700',
-    marginBottom: 3,
-  },
-  topicSubtitle: {
-    color: GREY,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-
-  // ── Info box — same card treatment as topic cards ──
-  infoBox: {
-    backgroundColor: CARD_BG,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: BORDER,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-  },
-  infoText: {
+  optionText: {
+    flex: 1,
     color: LIGHT_GREY,
-    fontSize: 13,
-    lineHeight: 21,
+    fontSize: 15,
+    fontWeight: '500',
   },
-  infoBold: {
-    color: GREEN,
-    fontWeight: '700',
+  optionTextSelected: {
+    color: WHITE,
+    fontWeight: '600',
   },
 
   // ── Bottom tab bar ──
@@ -299,3 +314,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 });
+

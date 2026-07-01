@@ -48,19 +48,41 @@ export default function App() {
   const [session, setSession] = useState(undefined);
 
   useEffect(() => {
-    // Check if a session already exists (e.g. user previously signed in and
-    // the token was saved to AsyncStorage by the Supabase client).
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session ?? null);
-    });
+    const initializeAuth = async () => {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error('App auth session error:', error.message);
+        setSession(null);
+        return;
+      }
 
-    // Subscribe to future sign-in / sign-out events.
-    // When the user signs in from SignUpScreen or LoginScreen, this fires
-    // automatically and App re-renders to show MainTabs — no explicit
-    // navigation.navigate() call needed in those screens.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => setSession(session ?? null)
-    );
+      if (session?.user) {
+        console.log('Auth state: signed_in', session.user.id);
+        setSession(session);
+        return;
+      }
+
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) {
+        console.error('App auth user error:', userError.message);
+      }
+
+      if (user) {
+        console.log('Auth state: signed_in', user.id);
+        setSession({ user });
+      } else {
+        console.log('Auth state: signed_out');
+        setSession(null);
+      }
+    };
+
+    initializeAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      const isSignedIn = Boolean(session?.user);
+      console.log('Auth state:', isSignedIn ? 'signed_in' : 'signed_out', session?.user?.id ?? 'none');
+      setSession(isSignedIn ? session : null);
+    });
 
     return () => subscription.unsubscribe();
   }, []);

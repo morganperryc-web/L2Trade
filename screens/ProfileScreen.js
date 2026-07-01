@@ -198,6 +198,18 @@ export default function ProfileScreen({ navigation }) {
     // Quiz and Journal are not yet registered as main tabs — no-op for now
   };
 
+  const handleSignOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Onboarding' }],
+      });
+    } catch (err) {
+      console.error('ProfileScreen sign out error:', err.message);
+    }
+  };
+
   return (
     <View style={styles.screen}>
       <StatusBar style="light" />
@@ -335,6 +347,10 @@ export default function ProfileScreen({ navigation }) {
             </View>
           </View>
           </>) }
+
+          <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut} activeOpacity={0.8}>
+            <Text style={styles.signOutText}>Log Out</Text>
+          </TouchableOpacity>
 
         </ScrollView>
 
@@ -511,6 +527,19 @@ const styles = StyleSheet.create({
   xpNextLabel: {
     color: GREY,
     fontSize: 12,
+  },
+
+  signOutButton: {
+    marginTop: 12,
+    marginHorizontal: 24,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderRadius: 12,
+  },
+  signOutText: {
+    color: '#FF6B6B',
+    fontSize: 15,
+    fontWeight: '700',
   },
 
   // ── Shared card heading (e.g. "THIS WEEK") ──

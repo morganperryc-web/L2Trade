@@ -3,29 +3,72 @@
 // supabase directly and repeat the same try/catch logic everywhere.
 import { supabase } from './supabase';
 
+function resolveTrack(track, quizAnswers = {}) {
+  const answer = quizAnswers.experience || quizAnswers.q1 || '';
+  const normalized = String(answer).toLowerCase();
+
+  if (normalized.includes('never started') || normalized.includes('under 1 year')) {
+    return 'beginner';
+  }
+
+  if (normalized.includes('1-3 years') || normalized.includes('1–3 years') || normalized.includes('3+ years')) {
+    return 'intermediate';
+  }
+
+  return track || 'beginner';
+}
+
 // ─── signUp ───────────────────────────────────────────────────────────────────
 // Creates a Supabase Auth user AND inserts a matching row in our public.users
-// table with the username and track chosen during onboarding.
+// table with the username, track, and quiz answers from onboarding.
 // If the profile insert fails we sign the user back out so they aren't left
 // in a half-created state and can try again.
-export async function signUp({ email, password, username, track }) {
-  // Step 1 — create the auth record (auth.users table, managed by Supabase)
+export async function signUp({ email, password, username, track, quiz_answers = {} }) {
+  const resolvedTrack = resolveTrack(track, quiz_answers);
+  console.log('signUp: quiz_answers', quiz_answers);
+  console.log('signUp: resolvedTrack', resolvedTrack);
+
   const { data, error } = await supabase.auth.signUp({ email, password });
   if (error) throw error;
   if (!data.user) throw new Error('Sign up failed — no user returned.');
 
-  // Step 2 — insert their public profile into our own users table
-  const { error: profileError } = await supabase.from('users').insert({
-    id:       data.user.id, // must match the auth.users id
+  const upsertPayload = {
+    id: data.user.id,
     email,
-    username,
-    track,
-  });
+    track: resolvedTrack,
+    created_at: new Date().toISOString(),
+  };
+
+  console.log('signUp: users upsert payload', upsertPayload);
+
+  const { data: profileRow, error: profileError } = await supabase
+    .from('users')
+    .upsert(upsertPayload, { onConflict: 'id' })
+    .select('id, email, track, created_at')
+    .single();
 
   if (profileError) {
-    // Roll back the auth creation so the user isn't stuck in a broken state
-    await supabase.auth.signOut();
+    console.error('signUp: users upsert failed', profileError);
     throw profileError;
+  }
+
+  console.log('signUp: saved user row', profileRow);
+
+  if (!data.session) {
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    if (signInError) throw signInError;
+
+    const { data: verifiedRow, error: verifyError } = await supabase
+      .from('users')
+      .select('id, email, track, created_at')
+      .eq('id', data.user.id)
+      .single();
+
+    if (!verifyError) {
+      console.log('signUp: verified user row after sign-in', verifiedRow);
+    }
+
+    return signInData;
   }
 
   return data;

@@ -31,8 +31,10 @@ const LIGHT_GREY = '#8A96A8';
 // After a successful signup, App.js's onAuthStateChange fires automatically
 // and switches the navigator to MainTabs — no navigation call needed here.
 export default function SignUpScreen({ navigation, route }) {
-  // The track the user picked on the quiz screen
+  // The track the user picked on the quiz screen (determined by Q1 answer)
   const track = route.params?.track ?? 'beginner';
+  // Quiz answers from QuizScreen
+  const quiz_answers = route.params?.quiz_answers ?? {};
 
   const [username, setUsername] = useState('');
   const [email,    setEmail]    = useState('');
@@ -51,7 +53,9 @@ export default function SignUpScreen({ navigation, route }) {
 
     setLoading(true);
     try {
-      await signUp({ email: email.trim(), password, username: username.trim(), track });
+      console.log('SignUpScreen: quiz_answers', quiz_answers);
+      console.log('SignUpScreen: resolved track', track);
+      await signUp({ email: email.trim(), password, username: username.trim(), track, quiz_answers });
       // No navigation here — App.js's onAuthStateChange handles it automatically
     } catch (err) {
       Alert.alert('Sign up failed', err.message);
