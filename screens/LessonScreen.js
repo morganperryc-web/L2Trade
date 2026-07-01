@@ -1,5 +1,5 @@
 // ─── Imports ─────────────────────────────────────────────────────────────────
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -59,6 +59,10 @@ export default function LessonScreen({ navigation, route }) {
   const [answered,       setAnswered]       = useState(false); // locked in after tap
   const [correctCount,   setCorrectCount]   = useState(0);     // running quiz score
   const [saving,         setSaving]         = useState(false); // true while writing to Supabase
+  const [skipTokens,     setSkipTokens]     = useState(2);
+  const [skipLoading,    setSkipLoading]    = useState(false);
+  const [showSkipPaywall, setShowSkipPaywall] = useState(false);
+  const [userProfile,    setUserProfile]    = useState(null);
 
   // ─── Derived values ────────────────────────────────────────────────────────
   const isConceptPhase = currentStep < conceptCards.length;
@@ -85,6 +89,97 @@ export default function LessonScreen({ navigation, route }) {
     if (option === currentQuestion?.correct_answer) {
       setCorrectCount(prev => prev + 1);
     }
+  };
+
+  const ensureUserProfile = async () => {
+    if (userProfile) return userProfile;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const { data, error } = await supabase
+      .from('users')
+      .select('skip_tokens, is_pro, skip_reset_date')
+      .eq('id', user.id)
+      .single();
+
+    if (error) {
+      console.error('LessonScreen profile fetch error:', error.message);
+      return null;
+    }
+
+    setUserProfile(data);
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const currentResetDate = data?.skip_reset_date ? new Date(data.skip_reset_date) : null;
+    const resetNeeded = !currentResetDate || currentResetDate < today;
+
+    if (resetNeeded && data && !data.is_pro) {
+      const nextMonday = new Date(today);
+      const daysUntilMonday = (8 - nextMonday.getDay()) % 7;
+      nextMonday.setDate(nextMonday.getDate() + (daysUntilMonday === 0 ? 7 : daysUntilMonday));
+      nextMonday.setHours(0, 0, 0, 0);
+      const resetValue = nextMonday.toISOString().split('T')[0];
+      await supabase.from('users').update({ skip_tokens: 2, skip_reset_date: resetValue }).eq('id', user.id);
+      setSkipTokens(2);
+    } else if (data?.skip_tokens != null && !data.is_pro) {
+      setSkipTokens(data.skip_tokens);
+    } else if (data?.is_pro) {
+      setSkipTokens(999);
+    }
+
+    return data;
+  };
+
+  useEffect(() => {
+    ensureUserProfile();
+  }, []);
+
+  const handleSkipQuestion = async () => {
+    if (!isConceptPhase || !currentQuestion) return;
+
+    const profile = await ensureUserProfile();
+    if (!profile) return;
+
+    if (profile.is_pro) {
+      setAnswered(true);
+      setSelectedAnswer(null);
+      return;
+    }
+
+    if (skipTokens <= 0) {
+      setShowSkipPaywall(true);
+      return;
+    }
+
+    setSkipLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const nextTokens = skipTokens - 1;
+      const { error } = await supabase
+        .from('users')
+        .update({ skip_tokens: nextTokens })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      setSkipTokens(nextTokens);
+      setAnswered(true);
+      setSelectedAnswer(null);
+    } catch (err) {
+      console.error('LessonScreen skip error:', err.message);
+    } finally {
+      setSkipLoading(false);
+    }
+  };
+
+  const handlePaywallDismiss = () => setShowSkipPaywall(false);
+  const handleUpgradeToPro = () => {
+    console.log('Upgrade to Pro pressed');
+    setShowSkipPaywall(false);
   };
 
   // ─── Advance to next step or complete ─────────────────────────────────────
@@ -282,6 +377,10 @@ export default function LessonScreen({ navigation, route }) {
               {/* The question text */}
               <Text style={styles.questionText}>{currentQuestion.question}</Text>
 
+              <View style={styles.skipRow}>
+                <Text style={styles.skipText}>{skipTokens >= 0 && !userProfile?.is_pro ? `${Math.max(0, skipTokens)} Skips left` : 'Unlimited skips'}</Text>
+              </View>
+
               {/* Answer options — each is a tappable card */}
               <View style={styles.optionsList}>
                 {(currentQuestion.options || []).map((option, i) => {
@@ -313,6 +412,21 @@ export default function LessonScreen({ navigation, route }) {
                 })}
               </View>
 
+              {!answered && (
+                <TouchableOpacity
+                  style={styles.skipButton}
+                  activeOpacity={0.8}
+                  onPress={handleSkipQuestion}
+                  disabled={skipLoading}
+                >
+                  {skipLoading ? (
+                    <ActivityIndicator color={GREEN} />
+                  ) : (
+                    <Text style={styles.skipButtonText}>Skip</Text>
+                  )}
+                </TouchableOpacity>
+              )}
+
               {/* Explanation shown after the user locks in an answer */}
               {answered && (
                 <View style={styles.feedbackBox}>
@@ -333,6 +447,23 @@ export default function LessonScreen({ navigation, route }) {
             </>
           )}
         </ScrollView>
+
+        {showSkipPaywall && (
+          <View style={styles.paywallOverlay}>
+            <View style={styles.paywallCard}>
+              <Text style={styles.paywallTitle}>Out of Skips this week</Text>
+              <Text style={styles.paywallText}>Upgrade to Pro for unlimited, or answer the question.</Text>
+              <View style={styles.paywallButtons}>
+                <TouchableOpacity style={styles.paywallPrimaryBtn} onPress={handleUpgradeToPro}>
+                  <Text style={styles.paywallPrimaryText}>Upgrade to Pro</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.paywallSecondaryBtn} onPress={handlePaywallDismiss}>
+                  <Text style={styles.paywallSecondaryText}>I'll answer it</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
 
         {/* ══════════════════════════════════════════════
             CONTINUE / NEXT / COMPLETE BUTTON
@@ -480,7 +611,31 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
 
+  skipRow: {
+    marginBottom: 12,
+    alignItems: 'flex-end',
+  },
+  skipText: {
+    color: LIGHT_GREY,
+    fontSize: 12,
+    fontWeight: '600',
+  },
   optionsList: { gap: 10, marginBottom: 16 },
+  skipButton: {
+    alignSelf: 'flex-end',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: CARD_BG,
+    borderWidth: 1,
+    borderColor: BORDER,
+    marginBottom: 12,
+  },
+  skipButtonText: {
+    color: GREEN,
+    fontSize: 13,
+    fontWeight: '700',
+  },
 
   // Default option card
   optionCard: {
@@ -535,6 +690,57 @@ const styles = StyleSheet.create({
   },
 
   // ── Continue button ──
+  paywallOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.72)',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    zIndex: 20,
+  },
+  paywallCard: {
+    backgroundColor: CARD_BG,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: BORDER,
+    padding: 20,
+  },
+  paywallTitle: {
+    color: WHITE,
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  paywallText: {
+    color: LIGHT_GREY,
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  paywallButtons: { gap: 10 },
+  paywallPrimaryBtn: {
+    backgroundColor: GREEN,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  paywallPrimaryText: {
+    color: WHITE,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  paywallSecondaryBtn: {
+    backgroundColor: BG,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: BORDER,
+  },
+  paywallSecondaryText: {
+    color: LIGHT_GREY,
+    fontSize: 14,
+    fontWeight: '600',
+  },
   continueSection: { paddingHorizontal: 24, paddingVertical: 12 },
   continueBtn: {
     backgroundColor: GREEN,
