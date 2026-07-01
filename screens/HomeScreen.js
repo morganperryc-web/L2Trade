@@ -107,6 +107,7 @@ export default function HomeScreen({ navigation }) {
   // ─── Derived display values ─────────────────────────────────────────────────
   const xpDisplay     = profile?.xp_total     ?? 0;
   const streakDisplay = profile?.streak_count  ?? 0;
+  const levelDisplay  = Math.max(1, Math.floor(xpDisplay / 500) + 1);
   const lessonTitle   = loading
     ? 'Loading...'
     : nextLesson
@@ -131,7 +132,10 @@ export default function HomeScreen({ navigation }) {
             {/* XP badge — real value from users table */}
             <View style={styles.xpBadge}>
               <MaterialCommunityIcons name="bolt" size={14} color={GREEN} />
-              <Text style={styles.xpText}>{xpDisplay} XP</Text>
+              <View style={styles.xpBadgeTextWrap}>
+                <Text style={styles.xpText}>{xpDisplay} XP</Text>
+                <Text style={styles.xpLevelText}>Level {levelDisplay}</Text>
+              </View>
             </View>
           </View>
         </View>
@@ -287,7 +291,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginLeft: 8,
   },
-  xpText: { color: GREEN, marginLeft: 6, fontWeight: '700' },
+  xpBadgeTextWrap: { marginLeft: 8 },
+  xpText: { color: GREEN, fontWeight: '700' },
+  xpLevelText: { color: LIGHT_GREY, fontSize: 10, lineHeight: 14 },
 
   content: { paddingHorizontal: 24, paddingTop: 18, paddingBottom: 10 },
 

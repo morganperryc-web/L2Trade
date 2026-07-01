@@ -12,6 +12,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
+import { supabase } from '../services/supabase';
 
 // ─── Design tokens — matches OnboardingScreen ─────────────────────────────────
 const GREEN      = '#00C853';
@@ -146,6 +147,7 @@ function SparkLine({ values, labels }) {
 // ─── ProfileScreen ────────────────────────────────────────────────────────────
 export default function ProfileScreen({ navigation }) {
   const [profile, setProfile] = useState(null);
+  const [completedLessons, setCompletedLessons] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = useCallback(async () => {
@@ -156,11 +158,19 @@ export default function ProfileScreen({ navigation }) {
 
       const { data, error } = await supabase
         .from('users')
-        .select('xp_total, streak_count')
+        .select('username, track, xp_total, streak_count, longest_streak')
         .eq('id', user.id)
         .single();
       if (error) throw error;
       setProfile(data);
+
+      const { count, error: progressError } = await supabase
+        .from('user_progress')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('completed', true);
+      if (progressError) throw progressError;
+      setCompletedLessons(count ?? 0);
     } catch (err) {
       console.error('ProfileScreen fetch error:', err.message);
     } finally {
@@ -171,6 +181,15 @@ export default function ProfileScreen({ navigation }) {
   useFocusEffect(fetchProfile);
 
   const xpTotal = profile?.xp_total ?? 0;
+  const level = Math.max(1, Math.floor(xpTotal / 500) + 1);
+  const xpToNextLevel = Math.max(0, level * 500 - xpTotal);
+  const username = profile?.username ?? 'Your Name';
+  const track = profile?.track ?? 'Your Track';
+  const stats = [
+    { icon: 'fire', value: String(profile?.streak_count ?? 0), label: 'Streak', iconColor: '#FF7043' },
+    { icon: 'book-open-variant', value: String(completedLessons), label: 'Lessons', iconColor: GREEN },
+    { icon: 'bullseye', value: String(profile?.longest_streak ?? 0), label: 'Longest', iconColor: GREEN },
+  ];
 
   const handleTabPress = (label) => {
     if (label === 'Home')    navigation.navigate('Home');
@@ -204,11 +223,11 @@ export default function ProfileScreen({ navigation }) {
             {/* Avatar circle on the left, title text on the right */}
             <View style={styles.avatarRow}>
               <View style={styles.avatar}>
-                <Text style={styles.avatarLetter}>C</Text>
+                <Text style={styles.avatarLetter}>{username.charAt(0).toUpperCase()}</Text>
               </View>
               <View>
-                <Text style={styles.yourTitle}>YOUR TITLE</Text>
-                <Text style={styles.titleName}>The Strategist</Text>
+                <Text style={styles.yourTitle}>{track}</Text>
+                <Text style={styles.titleName}>{username}</Text>
               </View>
             </View>
 
@@ -221,18 +240,13 @@ export default function ProfileScreen({ navigation }) {
 
             {/* Three stat cards in a horizontal row */}
             <View style={styles.statsRow}>
-              {STATS.map((s) => {
-                const value = s.label === 'Streak'
-                  ? String(profile?.streak_count ?? 0)
-                  : s.value;
-                return (
-                  <View key={s.label} style={styles.statCard}>
-                    <MaterialCommunityIcons name={s.icon} size={18} color={s.iconColor} />
-                    <Text style={styles.statValue}>{value}</Text>
-                    <Text style={styles.statLabel}>{s.label}</Text>
-                  </View>
-                );
-              })}
+              {stats.map((s) => (
+                <View key={s.label} style={styles.statCard}>
+                  <MaterialCommunityIcons name={s.icon} size={18} color={s.iconColor} />
+                  <Text style={styles.statValue}>{s.value}</Text>
+                  <Text style={styles.statLabel}>{s.label}</Text>
+                </View>
+              ))}
             </View>
 
           </View>
@@ -256,7 +270,7 @@ export default function ProfileScreen({ navigation }) {
               </View>
               <View style={styles.xpRight}>
                 <Text style={styles.levelLabel}>Level</Text>
-                <Text style={styles.levelNumber}>4</Text>
+                <Text style={styles.levelNumber}>{level}</Text>
               </View>
             </View>
 
@@ -264,7 +278,7 @@ export default function ProfileScreen({ navigation }) {
             <View style={styles.progressTrack}>
               <View style={[styles.progressFill, { width: '85%', backgroundColor: GREEN }]} />
             </View>
-            <Text style={styles.xpNextLabel}>{profile ? `${Math.max(0, 400 - xpTotal)} XP to Level 5` : 'Loading...'}</Text>
+            <Text style={styles.xpNextLabel}>{profile ? `${xpToNextLevel} XP to Level ${level + 1}` : 'Loading...'}</Text>
           </View>
 
           {/* ── This Week activity chart card ── */}
