@@ -45,16 +45,21 @@ const TABS = [
 export default function LessonScreen({ navigation, route }) {
   // The lesson passed from HomeScreen — fall back to an empty shell if missing
   const lesson = route.params?.lesson ?? null;
+  console.log('LessonScreen lesson payload:', lesson);
 
   const conceptCards  = lesson?.concept_cards  || [];
   const quizQuestions = lesson?.quiz_questions || [];
   const totalSteps    = conceptCards.length + quizQuestions.length;
+  console.log('Cards:', lesson?.concept_cards?.length ?? 0, 'Questions:', lesson?.quiz_questions?.length ?? 0);
 
   // ─── Step state ────────────────────────────────────────────────────────────
   // currentStep is a single index across both phases:
   //   0 … conceptCards.length-1  → concept phase
   //   conceptCards.length …      → quiz phase
   const [currentStep,    setCurrentStep]    = useState(0);
+  const [conceptIndex,   setConceptIndex]   = useState(0);
+  const [quizIndex,      setQuizIndex]      = useState(0);
+  const [inQuiz,         setInQuiz]         = useState(false);
   const [selectedAnswer, setSelectedAnswer] = useState(null);  // user's chosen option
   const [answered,       setAnswered]       = useState(false); // locked in after tap
   const [correctCount,   setCorrectCount]   = useState(0);     // running quiz score
@@ -65,17 +70,20 @@ export default function LessonScreen({ navigation, route }) {
   const [userProfile,    setUserProfile]    = useState(null);
 
   // ─── Derived values ────────────────────────────────────────────────────────
-  const isConceptPhase = currentStep < conceptCards.length;
-  const quizIndex      = currentStep - conceptCards.length;
+  const isConceptPhase = !inQuiz;
 
-  const currentCard     = isConceptPhase ? conceptCards[currentStep] : null;
+  const currentCard     = isConceptPhase ? conceptCards[conceptIndex] : null;
   const currentQuestion = !isConceptPhase ? quizQuestions[quizIndex] : null;
 
-  const isLastStep = totalSteps > 0 && currentStep === totalSteps - 1;
+  const isLastStep = totalSteps > 0 && (
+    inQuiz
+      ? quizIndex === quizQuestions.length - 1
+      : conceptCards.length === 0 || (conceptIndex === conceptCards.length - 1 && quizQuestions.length === 0)
+  );
 
   // Progress bar fills proportionally to how far through all steps the user is
   const progressPercent = totalSteps > 0
-    ? `${Math.round(((currentStep + 1) / totalSteps) * 100)}%`
+    ? `${Math.round((((inQuiz ? conceptCards.length : conceptIndex) + (inQuiz ? quizIndex + 1 : 0)) / totalSteps) * 100)}%`
     : '100%';
 
   // XP reward for this lesson; this is what we save when the lesson completes.
@@ -86,7 +94,7 @@ export default function LessonScreen({ navigation, route }) {
     if (answered) return; // prevent changing answer after submitting
     setSelectedAnswer(option);
     setAnswered(true);
-    if (option === currentQuestion?.correct_answer) {
+    if (option === currentQuestion?.correct) {
       setCorrectCount(prev => prev + 1);
     }
   };
@@ -132,19 +140,81 @@ export default function LessonScreen({ navigation, route }) {
     return data;
   };
 
+  const logLessonCounts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('lessons')
+        .select('id, title, order_index, concept_cards, quiz_questions')
+        .order('order_index', { ascending: true })
+        .limit(5);
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        console.log('Lessons query returned no rows.');
+        return;
+      }
+
+      (data || []).forEach((lessonItem) => {
+        console.log(
+          `Lesson id=${lessonItem.id} title="${lessonItem.title}" order_index=${lessonItem.order_index} concept_cards=${Array.isArray(lessonItem.concept_cards) ? lessonItem.concept_cards.length : 0} quiz_questions=${Array.isArray(lessonItem.quiz_questions) ? lessonItem.quiz_questions.length : 0}`
+        );
+      });
+    } catch (err) {
+      console.error('Lesson count logging error:', err.message);
+    }
+  };
+
   useEffect(() => {
     ensureUserProfile();
+    logLessonCounts();
   }, []);
 
+  const advanceToNextStep = () => {
+    if (isConceptPhase) {
+      if (conceptIndex < conceptCards.length - 1) {
+        setConceptIndex(prev => prev + 1);
+        setCurrentStep(prev => prev + 1);
+        setSelectedAnswer(null);
+        setAnswered(false);
+        return;
+      }
+
+      if (quizQuestions.length > 0) {
+        setInQuiz(true);
+        setQuizIndex(0);
+        setCurrentStep(prev => prev + 1);
+        setSelectedAnswer(null);
+        setAnswered(false);
+        return;
+      }
+
+      return;
+    }
+
+    if (quizIndex < quizQuestions.length - 1) {
+      setQuizIndex(prev => prev + 1);
+      setCurrentStep(prev => prev + 1);
+      setSelectedAnswer(null);
+      setAnswered(false);
+      return;
+    }
+
+    return;
+  };
+
   const handleSkipQuestion = async () => {
-    if (!isConceptPhase || !currentQuestion) return;
+    if (isConceptPhase || !currentQuestion) return;
 
     const profile = await ensureUserProfile();
     if (!profile) return;
 
     if (profile.is_pro) {
-      setAnswered(true);
-      setSelectedAnswer(null);
+      if (isLastStep) {
+        await handleComplete();
+      } else {
+        advanceToNextStep();
+      }
       return;
     }
 
@@ -167,8 +237,12 @@ export default function LessonScreen({ navigation, route }) {
       if (error) throw error;
 
       setSkipTokens(nextTokens);
-      setAnswered(true);
-      setSelectedAnswer(null);
+
+      if (isLastStep) {
+        await handleComplete();
+      } else {
+        advanceToNextStep();
+      }
     } catch (err) {
       console.error('LessonScreen skip error:', err.message);
     } finally {
@@ -192,9 +266,7 @@ export default function LessonScreen({ navigation, route }) {
       return;
     }
 
-    setCurrentStep(prev => prev + 1);
-    setSelectedAnswer(null);
-    setAnswered(false);
+    advanceToNextStep();
   };
 
   // ─── Save progress and return home ────────────────────────────────────────
@@ -356,17 +428,17 @@ export default function LessonScreen({ navigation, route }) {
           {/* ── CONCEPT PHASE — card with title and explanation ── */}
           {isConceptPhase && currentCard && (
             <>
-              {/* Card title in a styled inset card */}
+              {/* Lesson title shown as the card header */}
               <View style={styles.conceptCard}>
-                <Text style={styles.conceptCardTitle}>{currentCard.title}</Text>
+                <Text style={styles.conceptCardTitle}>{lesson?.title || 'Lesson'}</Text>
               </View>
 
-              {/* Explanation as the main body text */}
-              <Text style={styles.bodyText}>{currentCard.explanation}</Text>
+              {/* Concept text as the main body text */}
+              <Text style={styles.bodyText}>{currentCard.concept}</Text>
 
               {/* Step counter e.g. "Card 2 of 4" */}
               <Text style={styles.stepCounter}>
-                Card {currentStep + 1} of {conceptCards.length}
+                Card {conceptIndex + 1} of {conceptCards.length}
               </Text>
             </>
           )}
@@ -385,7 +457,7 @@ export default function LessonScreen({ navigation, route }) {
               <View style={styles.optionsList}>
                 {(currentQuestion.options || []).map((option, i) => {
                   const isSelected = selectedAnswer === option;
-                  const isCorrect  = option === currentQuestion.correct_answer;
+                  const isCorrect  = option === currentQuestion.correct;
 
                   // After answering: green border for correct, red for wrong selected
                   let optionStyle = styles.optionCard;
@@ -436,7 +508,7 @@ export default function LessonScreen({ navigation, route }) {
                     color="#FFD600"
                     style={{ marginTop: 1 }}
                   />
-                  <Text style={styles.feedbackText}>{currentQuestion.explanation}</Text>
+                  <Text style={styles.feedbackText}>Correct answer: {currentQuestion.correct}</Text>
                 </View>
               )}
 
