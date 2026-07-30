@@ -1,5 +1,5 @@
 // ─── Imports ─────────────────────────────────────────────────────────────────
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -8,6 +8,7 @@ import {
   SafeAreaView,
   ScrollView,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -38,7 +39,11 @@ const TABS = [
 // Receives a full lesson object from HomeScreen via route.params.lesson.
 // Lesson shape: { id, title, xp_reward, concept_cards: [], quiz_questions: [] }
 //
-// concept_cards items:  { title, explanation, image_url }
+// concept_cards items — two supported shapes:
+//   old: { concept: "text" }
+//   new: { type: "hook", lines: [...] } | { type: "explainer", content } |
+//        { type: "visual", image_url, caption } |
+//        { type: "scenario", prompt, options: [{ label, response }] }
 // quiz_questions items: { question, options: [], correct_answer, explanation }
 //
 // Flow: step through all concept_cards → then all quiz_questions → save + go home
@@ -47,9 +52,48 @@ export default function LessonScreen({ navigation, route }) {
   const lesson = route.params?.lesson ?? null;
   console.log('LessonScreen lesson payload:', lesson);
 
-  const conceptCards  = lesson?.concept_cards  || [];
-  const quizQuestions = lesson?.quiz_questions || [];
-  const totalSteps    = conceptCards.length + quizQuestions.length;
+  const rawConceptCards = lesson?.concept_cards || [];
+  const quizQuestions   = lesson?.quiz_questions || [];
+
+  // New format is detected per-lesson: a card has a `type` field instead of `concept`.
+  const isNewCardFormat = rawConceptCards.length > 0
+    && rawConceptCards[0]
+    && typeof rawConceptCards[0] === 'object'
+    && 'type' in rawConceptCards[0];
+
+  // Hook cards contain multiple lines that each render as their own full-screen
+  // step, so flatten new-format cards into one render-step per line/card.
+  const flatConceptSteps = useMemo(() => {
+    if (!isNewCardFormat) return [];
+    const steps = [];
+    rawConceptCards.forEach((card, cardIndex) => {
+      if (!card || typeof card !== 'object') return;
+      switch (card.type) {
+        case 'hook': {
+          const lines = Array.isArray(card.lines) ? card.lines : [];
+          lines.forEach((line, lineIndex) => {
+            steps.push({ type: 'hook', line, lineIndex, totalLines: lines.length, cardIndex });
+          });
+          break;
+        }
+        case 'explainer':
+          steps.push({ type: 'explainer', content: card.content, cardIndex });
+          break;
+        case 'visual':
+          steps.push({ type: 'visual', image_url: card.image_url, caption: card.caption, cardIndex });
+          break;
+        case 'scenario':
+          steps.push({ type: 'scenario', prompt: card.prompt, options: card.options || [], cardIndex });
+          break;
+        default:
+          break;
+      }
+    });
+    return steps;
+  }, [lesson, isNewCardFormat]);
+
+  const conceptCards = isNewCardFormat ? flatConceptSteps : rawConceptCards;
+  const totalSteps   = conceptCards.length + quizQuestions.length;
   console.log('Cards:', lesson?.concept_cards?.length ?? 0, 'Questions:', lesson?.quiz_questions?.length ?? 0);
 
   // ─── Step state ────────────────────────────────────────────────────────────
@@ -68,12 +112,17 @@ export default function LessonScreen({ navigation, route }) {
   const [skipLoading,    setSkipLoading]    = useState(false);
   const [showSkipPaywall, setShowSkipPaywall] = useState(false);
   const [userProfile,    setUserProfile]    = useState(null);
+  const [scenarioSelection, setScenarioSelection] = useState(null); // chosen option for a new-format scenario card
 
   // ─── Derived values ────────────────────────────────────────────────────────
   const isConceptPhase = !inQuiz;
 
   const currentCard     = isConceptPhase ? conceptCards[conceptIndex] : null;
   const currentQuestion = !isConceptPhase ? quizQuestions[quizIndex] : null;
+
+  // Scenario cards hold the Continue button back until the user taps a response
+  const isScenarioStep   = isConceptPhase && isNewCardFormat && currentCard?.type === 'scenario';
+  const scenarioAnswered = !!scenarioSelection;
 
   const isLastStep = totalSteps > 0 && (
     inQuiz
@@ -177,6 +226,7 @@ export default function LessonScreen({ navigation, route }) {
         setCurrentStep(prev => prev + 1);
         setSelectedAnswer(null);
         setAnswered(false);
+        setScenarioSelection(null);
         return;
       }
 
@@ -186,6 +236,7 @@ export default function LessonScreen({ navigation, route }) {
         setCurrentStep(prev => prev + 1);
         setSelectedAnswer(null);
         setAnswered(false);
+        setScenarioSelection(null);
         return;
       }
 
@@ -260,6 +311,8 @@ export default function LessonScreen({ navigation, route }) {
   const handleNext = async () => {
     // In the quiz phase the user must select an answer before advancing
     if (!isConceptPhase && !answered) return;
+    // Scenario cards must be answered before advancing too
+    if (isScenarioStep && !scenarioAnswered) return;
 
     if (isLastStep) {
       await handleComplete();
@@ -425,8 +478,8 @@ export default function LessonScreen({ navigation, route }) {
           </Text>
           <Text style={styles.lessonTitle}>{lesson.title}</Text>
 
-          {/* ── CONCEPT PHASE — card with title and explanation ── */}
-          {isConceptPhase && currentCard && (
+          {/* ── CONCEPT PHASE (old format) — card with title and explanation ── */}
+          {isConceptPhase && currentCard && !isNewCardFormat && (
             <>
               {/* Lesson title shown as the card header */}
               <View style={styles.conceptCard}>
@@ -437,6 +490,83 @@ export default function LessonScreen({ navigation, route }) {
               <Text style={styles.bodyText}>{currentCard.concept}</Text>
 
               {/* Step counter e.g. "Card 2 of 4" */}
+              <Text style={styles.stepCounter}>
+                Card {conceptIndex + 1} of {conceptCards.length}
+              </Text>
+            </>
+          )}
+
+          {/* ── CONCEPT PHASE (new typed-card format) ── */}
+          {isConceptPhase && currentCard && isNewCardFormat && (
+            <>
+              {currentCard.type === 'hook' && (
+                <View style={styles.hookCard}>
+                  <Text style={styles.hookLineText}>{currentCard.line}</Text>
+                </View>
+              )}
+
+              {currentCard.type === 'explainer' && (
+                <>
+                  <View style={styles.conceptCard}>
+                    <Text style={styles.conceptCardTitle}>{lesson?.title || 'Lesson'}</Text>
+                  </View>
+                  <Text style={styles.bodyText}>{currentCard.content}</Text>
+                </>
+              )}
+
+              {currentCard.type === 'visual' && (
+                currentCard.image_url ? (
+                  <Image
+                    source={{ uri: currentCard.image_url }}
+                    style={styles.visualImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={styles.visualPlaceholder}>
+                    <MaterialCommunityIcons name="image-outline" size={28} color={GREY} />
+                    <Text style={styles.visualCaption}>{currentCard.caption}</Text>
+                  </View>
+                )
+              )}
+
+              {currentCard.type === 'scenario' && (
+                <>
+                  <Text style={styles.questionText}>{currentCard.prompt}</Text>
+
+                  <View style={styles.optionsList}>
+                    {(currentCard.options || []).map((opt, i) => {
+                      const isSelected = scenarioSelection === opt;
+                      return (
+                        <TouchableOpacity
+                          key={i}
+                          style={isSelected ? styles.optionCorrect : styles.optionCard}
+                          activeOpacity={0.75}
+                          onPress={() => { if (!scenarioSelection) setScenarioSelection(opt); }}
+                          disabled={!!scenarioSelection}
+                        >
+                          <Text style={[styles.optionText, isSelected && styles.optionTextCorrect]}>
+                            {opt.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+
+                  {scenarioSelection && (
+                    <View style={styles.feedbackBox}>
+                      <MaterialCommunityIcons
+                        name="lightbulb-outline"
+                        size={16}
+                        color="#FFD600"
+                        style={{ marginTop: 1 }}
+                      />
+                      <Text style={styles.feedbackText}>{scenarioSelection.response}</Text>
+                    </View>
+                  )}
+                </>
+              )}
+
+              {/* Step counter e.g. "Card 2 of 6" */}
               <Text style={styles.stepCounter}>
                 Card {conceptIndex + 1} of {conceptCards.length}
               </Text>
@@ -542,21 +672,24 @@ export default function LessonScreen({ navigation, route }) {
             In quiz phase the button is dimmed until an answer is selected.
         ══════════════════════════════════════════════ */}
         <View style={styles.continueSection}>
-          <TouchableOpacity
-            style={[
-              styles.continueBtn,
-              // Dim the button if in quiz phase and no answer selected yet
-              (!isConceptPhase && !answered) && styles.continueBtnDisabled,
-            ]}
-            activeOpacity={0.85}
-            onPress={handleNext}
-            disabled={saving || (!isConceptPhase && !answered)}
-          >
-            {saving
-              ? <ActivityIndicator color={WHITE} />
-              : <Text style={styles.continueBtnText}>{continueLabel}</Text>
-            }
-          </TouchableOpacity>
+          {/* Scenario cards hide the button entirely until a response is picked */}
+          {(!isScenarioStep || scenarioAnswered) && (
+            <TouchableOpacity
+              style={[
+                styles.continueBtn,
+                // Dim the button if in quiz phase and no answer selected yet
+                (!isConceptPhase && !answered) && styles.continueBtnDisabled,
+              ]}
+              activeOpacity={0.85}
+              onPress={handleNext}
+              disabled={saving || (!isConceptPhase && !answered)}
+            >
+              {saving
+                ? <ActivityIndicator color={WHITE} />
+                : <Text style={styles.continueBtnText}>{continueLabel}</Text>
+              }
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* ── Bottom tab bar ── */}
@@ -665,6 +798,55 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 25,
     marginBottom: 16,
+  },
+
+  // ── Hook card (new format) — one big bold line, full-bleed feel ──
+  hookCard: {
+    minHeight: 320,
+    borderRadius: 20,
+    backgroundColor: CARD_BG,
+    borderWidth: 1,
+    borderColor: BORDER,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 32,
+    marginBottom: 20,
+  },
+  hookLineText: {
+    color: WHITE,
+    fontSize: 28,
+    fontWeight: '800',
+    lineHeight: 36,
+    textAlign: 'center',
+    letterSpacing: -0.4,
+  },
+
+  // ── Visual card (new format) ──
+  visualImage: {
+    width: '100%',
+    height: 240,
+    borderRadius: 16,
+    backgroundColor: CARD_BG,
+    marginBottom: 16,
+  },
+  visualPlaceholder: {
+    minHeight: 200,
+    borderRadius: 16,
+    backgroundColor: CARD_BG,
+    borderWidth: 1,
+    borderColor: BORDER,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingHorizontal: 24,
+    marginBottom: 16,
+  },
+  visualCaption: {
+    color: LIGHT_GREY,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
   },
 
   stepCounter: {

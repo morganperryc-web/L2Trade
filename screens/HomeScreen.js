@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  TextInput,
+  Alert,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 // useFocusEffect re-runs its callback every time this screen comes into view —
@@ -31,6 +33,8 @@ export default function HomeScreen({ navigation }) {
   const [nextLesson, setNextLesson] = useState(null);  // next uncompleted lesson object
   const [todayDone,  setTodayDone]  = useState(false); // true if user already did a lesson today
   const [loading,    setLoading]    = useState(true);
+  const [devLessonId, setDevLessonId] = useState(''); // dev-only: jump straight to a lesson by id
+  const [devJumping,  setDevJumping]  = useState(false);
 
   // ─── Data fetching ──────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
@@ -104,6 +108,33 @@ export default function HomeScreen({ navigation }) {
     navigation.navigate('Lesson', { lesson: nextLesson });
   };
 
+  // DEV-ONLY: fetch any lesson by id and jump straight into it, bypassing the
+  // daily-lesson lock. Not for production — gated behind __DEV__ below.
+  const handleDevJump = async () => {
+    const id = parseInt(devLessonId, 10);
+    if (!id) return;
+
+    setDevJumping(true);
+    try {
+      const { data, error } = await supabase
+        .from('lessons')
+        .select('id, title, order_index, xp_reward, concept_cards, quiz_questions')
+        .eq('id', id)
+        .single();
+
+      if (error || !data) {
+        Alert.alert('Dev jump', `No lesson found with id ${id}`);
+        return;
+      }
+
+      navigation.navigate('Lesson', { lesson: data });
+    } catch (err) {
+      console.error('Dev jump error:', err.message);
+    } finally {
+      setDevJumping(false);
+    }
+  };
+
   // ─── Derived display values ─────────────────────────────────────────────────
   const xpDisplay     = profile?.xp_total     ?? 0;
   const streakDisplay = profile?.streak_count  ?? 0;
@@ -139,6 +170,26 @@ export default function HomeScreen({ navigation }) {
             </View>
           </View>
         </View>
+
+        {/* ── DEV ONLY: jump to any lesson by id, bypassing the daily lock ── */}
+        {__DEV__ && (
+          <View style={styles.devPanel}>
+            <TextInput
+              style={styles.devInput}
+              placeholder="Lesson ID"
+              placeholderTextColor={GREY}
+              keyboardType="number-pad"
+              value={devLessonId}
+              onChangeText={setDevLessonId}
+            />
+            <TouchableOpacity style={styles.devBtn} onPress={handleDevJump} disabled={devJumping}>
+              {devJumping
+                ? <ActivityIndicator size="small" color={BG} />
+                : <Text style={styles.devBtnText}>Jump</Text>
+              }
+            </TouchableOpacity>
+          </View>
+        )}
 
         <ScrollView contentContainerStyle={styles.content}>
 
@@ -296,6 +347,33 @@ const styles = StyleSheet.create({
   xpLevelText: { color: LIGHT_GREY, fontSize: 10, lineHeight: 14 },
 
   content: { paddingHorizontal: 24, paddingTop: 18, paddingBottom: 10 },
+
+  // ── Dev-only lesson jump panel ──
+  devPanel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 24,
+    paddingTop: 12,
+  },
+  devInput: {
+    flex: 1,
+    backgroundColor: CARD_BG,
+    borderWidth: 1,
+    borderColor: '#FFD166',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    color: WHITE,
+    fontSize: 13,
+  },
+  devBtn: {
+    backgroundColor: '#FFD166',
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+  },
+  devBtnText: { color: BG, fontWeight: '700', fontSize: 13 },
 
   dailyGoalCard: {
     backgroundColor: CARD_BG,
