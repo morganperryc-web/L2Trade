@@ -219,6 +219,22 @@ export default function LessonScreen({ navigation, route }) {
     logLessonCounts();
   }, []);
 
+  // The Lesson tab stays mounted across navigations (it's a Tab.Screen, not a
+  // Stack push), so navigating here with a different lesson does NOT remount
+  // this component or reset its useState values on its own. Without this,
+  // opening a new lesson can show leftover step/answer state from whichever
+  // lesson was open before it.
+  useEffect(() => {
+    setCurrentStep(0);
+    setConceptIndex(0);
+    setQuizIndex(0);
+    setInQuiz(false);
+    setSelectedAnswer(null);
+    setAnswered(false);
+    setCorrectCount(0);
+    setScenarioSelection(null);
+  }, [lesson?.id]);
+
   const advanceToNextStep = () => {
     if (isConceptPhase) {
       if (conceptIndex < conceptCards.length - 1) {
